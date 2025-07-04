@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UMHC Finance Dashboard</title>
+    
+    <!-- Favicon (optional) -->
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+    
+    <!-- CSS Files - Load in order -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/components.css">
+    
+    <!-- External libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="main-header">
+        <div class="container">
+            <h1 class="logo">
+                <span class="logo-icon">🏔️</span>
+                UMHC Finance
+            </h1>
+            <nav class="main-nav">
+                <a href="#dashboard" class="nav-link active">Dashboard</a>
+                <a href="#transactions" class="nav-link">Transactions</a>
+                <a href="#events" class="nav-link">Events</a>
+                <a href="admin-login.html" class="nav-link admin-link">Committee Login</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Welcome Section -->
+            <section class="welcome-section">
+                <h2>University of Manchester Hiking Club</h2>
+                <p class="welcome-text">
+                    Welcome to our transparent financial dashboard. Here you can view our income, 
+                    expenses, and how your membership fees support club activities.
+                </p>
+            </section>
+
+            <!-- Quick Stats Cards -->
+            <section class="stats-section" id="statsSection">
+                <div class="stats-grid">
+                    <div class="stat-card income">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-content">
+                            <h3>Total Income</h3>
+                            <div class="stat-value" id="totalIncome">Loading...</div>
+                            <div class="stat-change positive">+12% from last year</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card expense">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <h3>Total Expenses</h3>
+                            <div class="stat-value" id="totalExpenses">Loading...</div>
+                            <div class="stat-change neutral">Planning phase</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card balance">
+                        <div class="stat-icon">💎</div>
+                        <div class="stat-content">
+                            <h3>Current Balance</h3>
+                            <div class="stat-value" id="currentBalance">Loading...</div>
+                            <div class="stat-change positive">Healthy reserves</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card members">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-content">
+                            <h3>Active Members</h3>
+                            <div class="stat-value" id="memberCount">42</div>
+                            <div class="stat-change positive">Growing community</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="charts-section" id="chartsSection">
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h3>Income vs Expenses (Monthly)</h3>
+                        <canvas id="incomeExpenseChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Spending by Category</h3>
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Transactions -->
+            <section class="transactions-section" id="transactionsSection">
+                <div class="section-header">
+                    <h3>Recent Transactions</h3>
+                    <div class="filter-controls">
+                        <select id="filterPeriod">
+                            <option value="all">All Time</option>
+                            <option value="year">This Year</option>
+                            <option value="quarter">This Quarter</option>
+                            <option value="month">This Month</option>
+                        </select>
+                        <input type="text" id="searchTransactions" placeholder="Search transactions...">
+                    </div>
+                </div>
+                
+                <div class="transactions-table-container">
+                    <table class="transactions-table" id="transactionsTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Event</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionsTableBody">
+                            <tr>
+                                <td colspan="5" class="loading-row">Loading transactions...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- System Status -->
+            <section class="status-section" id="statusSection">
+                <div class="status-info">
+                    <p><strong>System Status:</strong> <span id="systemStatus" class="status-badge">Initializing...</span></p>
+                    <p><strong>Last Updated:</strong> <span id="lastUpdated">Loading...</span></p>
+                    <p><strong>Data Source:</strong> Committee-managed financial records</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>UMHC Finance System</h4>
+                    <p>Transparent financial management for our hiking community.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="#dashboard">Dashboard</a></li>
+                        <li><a href="#transactions">Transactions</a></li>
+                        <li><a href="admin-login.html">Committee Access</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>treasurer@umhc.manchester.ac.uk</p>
+                    <p>Questions about finances? Get in touch!</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 University of Manchester Hiking Club. Built with ❤️ by the committee.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Files - Load configuration first, then other modules -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/data-manager.js"></script>
+    <script src="js/chart-renderer.js"></script>
+    <script src="js/ui-components.js"></script>
+
+    <!-- Page-specific JavaScript -->
+    <script>
+        // Main dashboard initialization
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🏔️ UMHC Finance Dashboard Loading...');
+            
+            // Validate configuration
+            const configValidation = CONFIG.validate();
+            if (!configValidation.isValid) {
+                console.warn('⚠️ Configuration issues:', configValidation.errors);
+                document.getElementById('systemStatus').textContent = 'Configuration Issues';
+                document.getElementById('systemStatus').className = 'status-badge warning';
+            } else {
+                document.getElementById('systemStatus').textContent = 'Online';
+                document.getElementById('systemStatus').className = 'status-badge success';
+            }
+            
+            // Set last updated time
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString('en-GB');
+            
+            // Initialize components (these will be created in later phases)
+            try {
+                // For now, just show placeholder data
+                await loadPlaceholderData();
+                console.log('✅ Dashboard loaded successfully');
+            } catch (error) {
+                console.error('❌ Failed to load dashboard:', error);
+                showErrorMessage('Failed to load financial data. Please refresh the page.');
+            }
+        });
+
+        // Placeholder data function (will be replaced with real data manager)
+        async function loadPlaceholderData() {
+            // Simulate loading delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Sample data for demonstration
+            const sampleData = {
+                totalIncome: 2474.00,
+                totalExpenses: 2053.76,
+                balance: 420.24,
+                transactions: [
+                    {
+                        date: '2025-04-18',
+                        description: 'Welsh 3000s Registration',
+                        category: 'Event Income',
+                        event: 'Welsh 3000s 2025',
+                        amount: 1610.00
+                    },
+                    {
+                        date: '2025-04-15',
+                        description: 'Hostel Booking - Snowdonia',
+                        category: 'Accommodation',
+                        event: 'Welsh 3000s 2025',
+                        amount: -1400.00
+                    },
+                    {
+                        date: '2025-04-10',
+                        description: 'Equipment Maintenance',
+                        category: 'Equipment',
+                        event: 'General',
+                        amount: -89.50
+                    }
+                ]
+            };
+            
+            // Update the UI with sample data
+            document.getElementById('totalIncome').textContent = `£${sampleData.totalIncome.toFixed(2)}`;
+            document.getElementById('totalExpenses').textContent = `£${sampleData.totalExpenses.toFixed(2)}`;
+            document.getElementById('currentBalance').textContent = `£${sampleData.balance.toFixed(2)}`;
+            
+            // Populate transactions table
+            const tableBody = document.getElementById('transactionsTableBody');
+            tableBody.innerHTML = '';
+            
+            sampleData.transactions.forEach(transaction => {
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td>${new Date(transaction.date).toLocaleDateString('en-GB')}</td>
+                    <td>${transaction.description}</td>
+                    <td>${transaction.category}</td>
+                    <td>${transaction.event}</td>
+                    <td class="${transaction.amount > 0 ? 'amount-positive' : 'amount-negative'}">
+                        £${Math.abs(transaction.amount).toFixed(2)}
+                    </td>
+                `;
+            });
+            
+            console.log('📊 Sample data loaded');
+        }
+
+        // Utility function for error messages
+        function showErrorMessage(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            document.querySelector('.main-content').prepend(errorDiv);
+        }
+
+        // Navigation handling
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                if (this.getAttribute('href').startsWith('#')) {
+                    e.preventDefault();
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
