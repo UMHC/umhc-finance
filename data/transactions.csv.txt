@@ -1,0 +1,11 @@
+Date,Description,Amount,Type,Category,Event,Reference
+18/04/2025,Welsh 3000s Registration,1610.00,Income,Event Registration,Welsh 3000s 2025,REG001
+18/04/2025,Hostel Booking - Canolfan Corris,-1400.00,Expense,Accommodation,Welsh 3000s 2025,INV001
+15/04/2025,Transport - Minibus Hire,-320.50,Expense,Transport,Welsh 3000s 2025,INV002
+10/04/2025,Equipment Maintenance,-89.50,Expense,Equipment,General,INV003
+05/04/2025,Membership Fees Collection,420.00,Income,Membership,General,MEM001
+01/04/2025,Insurance Payment,-125.00,Expense,Insurance,General,INV004
+25/03/2025,Spring Social Event,180.00,Income,Social Events,Spring Social 2025,SOC001
+20/03/2025,First Aid Course,-75.00,Expense,Training,General,TRN001
+15/03/2025,New Member Registration,35.00,Income,Membership,General,MEM002
+10/03/2025,Website Hosting,-8.99,Expense,Administration,General,ADM001

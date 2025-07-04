@@ -1,0 +1,32 @@
+{
+  "lastUpdated": "2025-07-04T12:00:00Z",
+  "totalIncome": 2245.00,
+  "totalExpenses": 2019.49,
+  "balance": 225.51,
+  "transactionCount": 10,
+  "byCategory": {
+    "Event Registration": 1610.00,
+    "Membership": 455.00,
+    "Social Events": 180.00,
+    "Accommodation": -1400.00,
+    "Transport": -320.50,
+    "Equipment": -89.50,
+    "Insurance": -125.00,
+    "Training": -75.00,
+    "Administration": -8.99
+  },
+  "byEvent": {
+    "Welsh 3000s 2025": 210.00,
+    "Spring Social 2025": 180.00,
+    "General": -164.49
+  },
+  "byMonth": {
+    "2025-03": 131.01,
+    "2025-04": 94.50
+  },
+  "recentActivity": {
+    "lastTransaction": "2025-04-18",
+    "averageMonthlyIncome": 1122.50,
+    "averageMonthlyExpenses": 1009.75
+  }
+}
