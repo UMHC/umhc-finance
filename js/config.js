@@ -1,10 +1,10 @@
-// js/config.js - Central Configuration for UMHC Finance System
-// This file contains all the key settings and is updated annually by new committees
+// js/config.js - Enhanced Configuration for UMHC Finance System
+// Updated with future-proof categories based on real transaction analysis
 
 const CONFIG = {
     // Application metadata
     APP_NAME: 'UMHC Finance System',
-    VERSION: '1.0.0',
+    VERSION: '1.1.0',
     LAST_UPDATED: '2025-07-04',
     
     // GitHub OAuth Configuration
@@ -43,6 +43,114 @@ const CONFIG = {
         COMMITTEE_HISTORY: 'data/committee-history.json'
     },
     
+    // Enhanced Category System (Future-Proofed)
+    CATEGORIES: {
+        // Core operational categories (most transactions)
+        CORE: [
+            'Event Registration',
+            'Membership',
+            'Accommodation', 
+            'Transport',
+            'Equipment',
+            'Training',
+            'Food & Catering'
+        ],
+        
+        // Financial & administrative (money management)
+        FINANCIAL: [
+            'Grants & Funding',
+            'Refunds & Adjustments',
+            'Insurance',
+            'Administration'
+        ],
+        
+        // External & promotional (outreach activities)
+        EXTERNAL: [
+            'External Memberships',
+            'Technology & Communications',
+            'Marketing & Promotion',
+            'Professional Services'
+        ],
+        
+        // Specialized categories (add as needed)
+        SPECIALIZED: [
+            'Health & Safety',
+            'Penalties & Fines',
+            'Competition & Awards',
+            'Utilities & Facilities',
+            'Social Events',
+            'Merchandise'
+        ]
+    },
+    
+    // Auto-categorization suggestions based on real UMHC data
+    CATEGORY_SUGGESTIONS: {
+        'grant': 'Grants & Funding',
+        'fund it': 'Grants & Funding',
+        'funding': 'Grants & Funding',
+        'refund': 'Refunds & Adjustments',
+        'credit': 'Refunds & Adjustments',
+        'adjustment': 'Refunds & Adjustments',
+        'bmc': 'External Memberships',
+        'mountaineering council': 'External Memberships',
+        'website': 'Technology & Communications',
+        'domain': 'Technology & Communications',
+        'hosting': 'Technology & Communications',
+        'printing': 'Marketing & Promotion',
+        'poster': 'Marketing & Promotion',
+        'promotional': 'Marketing & Promotion',
+        'fresher': 'Marketing & Promotion',
+        'traffic': 'Penalties & Fines',
+        'fine': 'Penalties & Fines',
+        'penalty': 'Penalties & Fines',
+        'toll': 'Penalties & Fines',
+        'first aid': 'Health & Safety',
+        'safety': 'Health & Safety',
+        'emergency': 'Health & Safety',
+        'engraving': 'Professional Services',
+        'legal': 'Professional Services',
+        'accounting': 'Professional Services',
+        'prize': 'Competition & Awards',
+        'award': 'Competition & Awards',
+        'trophy': 'Competition & Awards',
+        'storage': 'Utilities & Facilities',
+        'utility': 'Utilities & Facilities',
+        'facility': 'Utilities & Facilities',
+        'membership': 'Membership',
+        'ticket': 'Event Registration',
+        'registration': 'Event Registration',
+        'hostel': 'Accommodation',
+        'yha': 'Accommodation',
+        'hotel': 'Accommodation',
+        'minibus': 'Transport',
+        'coach': 'Transport',
+        'fuel': 'Transport',
+        'diesel': 'Transport',
+        'petrol': 'Transport',
+        'uber': 'Transport',
+        'taxi': 'Transport',
+        'parking': 'Transport',
+        'helmet': 'Equipment',
+        'rope': 'Equipment',
+        'compass': 'Equipment',
+        'radio': 'Equipment',
+        'boots': 'Equipment',
+        'tent': 'Equipment',
+        'course': 'Training',
+        'instructor': 'Training',
+        'guide': 'Training',
+        'food': 'Food & Catering',
+        'meal': 'Food & Catering',
+        'catering': 'Food & Catering',
+        'insurance': 'Insurance',
+        'banking': 'Administration',
+        'fee': 'Administration',
+        'social': 'Social Events',
+        'party': 'Social Events',
+        'barbecue': 'Social Events',
+        'bbq': 'Social Events'
+    },
+    
     // External API endpoints
     API_ENDPOINTS: {
         CLAUDE: 'https://api.anthropic.com/v1/messages',
@@ -65,7 +173,22 @@ const CONFIG = {
             INCOME: '#28a745',
             EXPENSE: '#dc3545',
             PRIMARY: '#667eea',
-            SECONDARY: '#764ba2'
+            SECONDARY: '#764ba2',
+            // Category colors for better visualization
+            CATEGORY_COLORS: {
+                'Event Registration': '#28a745',
+                'Membership': '#17a2b8',
+                'Accommodation': '#fd7e14',
+                'Transport': '#6f42c1',
+                'Equipment': '#dc3545',
+                'Training': '#20c997',
+                'Food & Catering': '#ffc107',
+                'Grants & Funding': '#198754',
+                'Insurance': '#6c757d',
+                'Administration': '#495057',
+                'Social Events': '#e83e8c',
+                'External Memberships': '#0d6efd'
+            }
         },
         DATE_FORMAT: 'DD/MM/YYYY',
         CURRENCY: 'GBP'
@@ -97,6 +220,8 @@ const CONFIG = {
         BULK_IMPORT: true,
         DATA_EXPORT: true,
         AUDIT_TRAIL: true,
+        CATEGORY_SUGGESTIONS: true, // New feature
+        THEME_TOGGLE: true, // For light/dark mode
         EMAIL_NOTIFICATIONS: false // Future feature
     },
     
@@ -107,13 +232,17 @@ const CONFIG = {
             INVALID_FILE: 'Invalid file type. Please upload a PDF or image file.',
             NETWORK_ERROR: 'Network error. Please check your connection and try again.',
             AI_PROCESSING: 'AI processing failed. Please try manual entry or contact support.',
-            SESSION_EXPIRED: 'Your session has expired. Please log in again.'
+            SESSION_EXPIRED: 'Your session has expired. Please log in again.',
+            INVALID_CATEGORY: 'Please select a valid category for this transaction.',
+            DUPLICATE_TRANSACTION: 'This transaction may be a duplicate. Please verify.'
         },
         SUCCESS: {
             LOGIN: 'Successfully logged in! Welcome to the admin dashboard.',
             FILE_PROCESSED: 'File processed successfully! Review the extracted data below.',
             DATA_SAVED: 'Transaction data saved successfully.',
-            LOGOUT: 'Successfully logged out.'
+            LOGOUT: 'Successfully logged out.',
+            CATEGORY_SUGGESTED: 'Category automatically suggested based on transaction description.',
+            EXPORT_COMPLETE: 'Data exported successfully!'
         }
     },
     
@@ -125,7 +254,39 @@ const CONFIG = {
     }
 };
 
-// Helper functions for configuration
+// Helper functions for enhanced functionality
+CONFIG.getAllCategories = function() {
+    return [
+        ...this.CATEGORIES.CORE,
+        ...this.CATEGORIES.FINANCIAL,
+        ...this.CATEGORIES.EXTERNAL,
+        ...this.CATEGORIES.SPECIALIZED
+    ].sort();
+};
+
+CONFIG.suggestCategory = function(description) {
+    if (!description || !this.FEATURES.CATEGORY_SUGGESTIONS) return null;
+    
+    const lowerDesc = description.toLowerCase();
+    
+    // Check for keyword matches
+    for (const [keyword, category] of Object.entries(this.CATEGORY_SUGGESTIONS)) {
+        if (lowerDesc.includes(keyword)) {
+            return category;
+        }
+    }
+    
+    return null;
+};
+
+CONFIG.getCategoryColor = function(category) {
+    return this.UI.CHART_COLORS.CATEGORY_COLORS[category] || this.UI.CHART_COLORS.PRIMARY;
+};
+
+CONFIG.getCategoriesByGroup = function(group) {
+    return this.CATEGORIES[group] || [];
+};
+
 CONFIG.isCommitteeMember = function(githubUsername) {
     return this.COMMITTEE_MEMBERS.some(member => 
         member.github.toLowerCase() === githubUsername.toLowerCase()
@@ -154,7 +315,7 @@ CONFIG.log = function(level, message, data = null) {
     }
 };
 
-// Validation functions
+// Enhanced validation functions
 CONFIG.validate = function() {
     const errors = [];
     
@@ -163,10 +324,23 @@ CONFIG.validate = function() {
         errors.push('No committee members configured');
     }
     
+    // Validate categories are properly configured
+    const allCategories = this.getAllCategories();
+    if (allCategories.length === 0) {
+        errors.push('No categories configured');
+    }
+    
+    // Check for duplicate categories
+    const duplicates = allCategories.filter((item, index) => allCategories.indexOf(item) !== index);
+    if (duplicates.length > 0) {
+        errors.push(`Duplicate categories found: ${duplicates.join(', ')}`);
+    }
+    
     // For development phase, don't validate OAuth setup yet
     if (this.DEBUG.ENABLED) {
         // In debug mode, just log info but don't treat as errors
         CONFIG.log('info', 'Development mode - OAuth setup will be completed in Phase 3');
+        CONFIG.log('info', `Configured ${allCategories.length} categories across ${Object.keys(this.CATEGORIES).length} groups`);
     }
     
     return {
@@ -179,8 +353,9 @@ CONFIG.validate = function() {
 window.CONFIG = CONFIG;
 
 // Log configuration status on load
-CONFIG.log('info', 'Configuration loaded', {
+CONFIG.log('info', 'Enhanced configuration loaded', {
     version: CONFIG.VERSION,
     committeeCount: CONFIG.COMMITTEE_MEMBERS.length,
+    categoryCount: CONFIG.getAllCategories().length,
     featuresEnabled: Object.keys(CONFIG.FEATURES).filter(key => CONFIG.FEATURES[key])
 });
