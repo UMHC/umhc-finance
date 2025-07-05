@@ -1,11 +1,137 @@
 Date,Description,Amount,Type,Category,Event,Reference
-18/04/2025,Welsh 3000s Registration,1610.00,Income,Event Registration,Welsh 3000s 2025,REG001
-18/04/2025,Hostel Booking - Canolfan Corris,-1400.00,Expense,Accommodation,Welsh 3000s 2025,INV001
-15/04/2025,Transport - Minibus Hire,-320.50,Expense,Transport,Welsh 3000s 2025,INV002
-10/04/2025,Equipment Maintenance,-89.50,Expense,Equipment,General,INV003
-05/04/2025,Membership Fees Collection,420.00,Income,Membership,General,MEM001
-01/04/2025,Insurance Payment,-125.00,Expense,Insurance,General,INV004
-25/03/2025,Spring Social Event,180.00,Income,Social Events,Spring Social 2025,SOC001
-20/03/2025,First Aid Course,-75.00,Expense,Training,General,TRN001
-15/03/2025,New Member Registration,35.00,Income,Membership,General,MEM002
-10/03/2025,Website Hosting,-8.99,Expense,Administration,General,ADM001
+01/09/2024,Annual Insurance Premium,-450.00,Expense,Insurance,General,INS2024
+03/09/2024,Fresher's Fair Registration,180.00,Income,Event Registration,Fresher's Fair 2024,REG001
+05/09/2024,Equipment Purchase - 10x Helmets,-320.50,Expense,Equipment,General,EQ001
+08/09/2024,New Member Registrations (15 members),525.00,Income,Membership,General,MEM001
+12/09/2024,Transport - Minibus to Lake District,-285.00,Expense,Transport,Lake District Weekend,TXN001
+12/09/2024,Lake District Weekend Registration,840.00,Income,Event Registration,Lake District Weekend,REG002
+15/09/2024,Accommodation - YHA Ambleside,-720.00,Expense,Accommodation,Lake District Weekend,ACC001
+18/09/2024,Equipment Maintenance - Rope Inspection,-125.00,Expense,Equipment,General,MAINT001
+22/09/2024,Committee Social Fund,65.00,Income,Social Events,Committee Social,SOC001
+25/09/2024,Website Domain Renewal,-89.99,Expense,Administration,General,ADM001
+28/09/2024,First Aid Training Course,-450.00,Expense,Training,General,TRN001
+30/09/2024,Monthly Banking Fees,-12.50,Expense,Administration,General,BANK001
+
+02/10/2024,New Member Registrations (8 members),280.00,Income,Membership,General,MEM002
+05/10/2024,Peak District Day Walk Registration,420.00,Income,Event Registration,Peak District Walks,REG003
+06/10/2024,Equipment Purchase - Climbing Ropes,-680.00,Expense,Equipment,General,EQ002
+08/10/2024,Transport - Coach to Peak District,-145.00,Expense,Transport,Peak District Walks,TXN002
+12/10/2024,Charity Fundraising - Sponsored Hike,325.00,Income,Fundraising,Charity Challenge,FUND001
+15/10/2024,Club Merchandise Sales,156.50,Income,Merchandise,General,MERCH001
+18/10/2024,Equipment Storage Unit Rental,-85.00,Expense,Administration,General,STOR001
+22/10/2024,Halloween Social Event Registration,95.00,Income,Event Registration,Halloween Social,REG004
+22/10/2024,Halloween Social Venue Hire,-180.00,Expense,Social Events,Halloween Social,SOC002
+25/10/2024,Professional Development - Mountain Leader Training,-850.00,Expense,Training,General,TRN002
+28/10/2024,Equipment Purchase - Group Shelter,-125.00,Expense,Equipment,General,EQ003
+31/10/2024,Monthly Banking Fees,-12.50,Expense,Administration,General,BANK002
+
+03/11/2024,Remembrance Day Charity Walk,240.00,Income,Fundraising,Charity Challenge,FUND002
+06/11/2024,New Member Registrations (12 members),420.00,Income,Membership,General,MEM003
+08/11/2024,Snowdonia Weekend Registration,1250.00,Income,Event Registration,Snowdonia Weekend,REG005
+10/11/2024,Transport - Minibus to Snowdonia,-340.00,Expense,Transport,Snowdonia Weekend,TXN003
+12/11/2024,Accommodation - Pen-y-Pass YHA,-950.00,Expense,Accommodation,Snowdonia Weekend,ACC002
+15/11/2024,Equipment Purchase - Winter Gear,-425.00,Expense,Equipment,General,EQ004
+18/11/2024,Club Photography Competition Prize,-75.00,Expense,Social Events,Photo Competition,PRIZE001
+20/11/2024,Equipment Repair - Damaged Boots,-145.50,Expense,Equipment,General,MAINT002
+22/11/2024,AGM Venue Hire,-120.00,Expense,Administration,AGM 2024,ADM002
+25/11/2024,Christmas Social Planning Fund,150.00,Income,Social Events,Christmas Social,SOC003
+28/11/2024,Emergency First Aid Kit Restocking,-89.99,Expense,Equipment,General,EQ005
+30/11/2024,Monthly Banking Fees,-12.50,Expense,Administration,General,BANK003
+
+01/12/2024,Winter Skills Course Registration,680.00,Income,Event Registration,Winter Skills Course,REG006
+03/12/2024,Equipment Purchase - Ice Axes (5x),-375.00,Expense,Equipment,General,EQ006
+05/12/2024,New Member Registrations (6 members),210.00,Income,Membership,General,MEM004
+08/12/2024,Christmas Social Venue Booking,-220.00,Expense,Social Events,Christmas Social,SOC004
+10/12/2024,Transport - Coach to Cairngorms,-485.00,Expense,Transport,Winter Skills Course,TXN004
+12/12/2024,Accommodation - Cairngorm Lodge,-1200.00,Expense,Accommodation,Winter Skills Course,ACC003
+15/12/2024,Professional Instructor Fees,-650.00,Expense,Training,Winter Skills Course,INST001
+18/12/2024,Equipment Rental - Crampons,-180.00,Expense,Equipment,Winter Skills Course,RENT001
+20/12/2024,Christmas Social Registration,285.00,Income,Event Registration,Christmas Social,REG007
+22/12/2024,Christmas Social Catering,-340.00,Expense,Social Events,Christmas Social,CATER001
+28/12/2024,Year-End Equipment Audit,-0.00,Expense,Administration,General,AUDIT001
+31/12/2024,Monthly Banking Fees,-12.50,Expense,Administration,General,BANK004
+
+02/01/2025,New Year Membership Drive,385.00,Income,Membership,General,MEM005
+05/01/2025,Indoor Climbing Session Registration,240.00,Income,Event Registration,Indoor Climbing,REG008
+08/01/2025,Indoor Climbing Wall Hire,-180.00,Expense,Social Events,Indoor Climbing,CLIMB001
+10/01/2025,Equipment Purchase - Belay Devices,-225.00,Expense,Equipment,General,EQ007
+12/01/2025,Annual Club Affiliation Fees,-180.00,Expense,Administration,General,AFFIL001
+15/01/2025,Winter Walking Weekend Registration,920.00,Income,Event Registration,Yorkshire Dales Winter,REG009
+18/01/2025,Transport - Minibus to Yorkshire Dales,-265.00,Expense,Transport,Yorkshire Dales Winter,TXN005
+20/01/2025,Accommodation - Malham YHA,-680.00,Expense,Accommodation,Yorkshire Dales Winter,ACC004
+22/01/2025,Club Newsletter Printing,-45.00,Expense,Administration,General,PRINT001
+25/01/2025,Equipment Maintenance - Annual Service,-280.00,Expense,Equipment,General,MAINT003
+28/01/2025,Burns Night Social Registration,120.00,Income,Event Registration,Burns Night Social,REG010
+30/01/2025,Burns Night Venue and Food,-195.00,Expense,Social Events,Burns Night Social,SOC005
+31/01/2025,Monthly Banking Fees,-12.50,Expense,Administration,General,BANK005
+
+01/02/2025,Spring Programme Launch,0.00,Income,Administration,General,LAUNCH001
+03/02/2025,Rock Climbing Course Registration,1150.00,Income,Event Registration,Rock Climbing Course,REG011
+05/02/2025,Equipment Purchase - Climbing Hardware,-850.00,Expense,Equipment,General,EQ008
+08/02/2025,New Member Registrations (18 members),630.00,Income,Membership,General,MEM006
+10/02/2025,Professional Climbing Instructor,-750.00,Expense,Training,Rock Climbing Course,INST002
+12/02/2025,Transport - Minibus to Peak District,-220.00,Expense,Transport,Rock Climbing Course,TXN006
+15/02/2025,Accommodation - Edale YHA,-540.00,Expense,Accommodation,Rock Climbing Course,ACC005
+18/02/2025,Valentine's Day Social Registration,85.00,Income,Event Registration,Valentine Social,REG012
+20/02/2025,Equipment Insurance Annual Premium,-320.00,Expense,Insurance,General,INS2025
+22/02/2025,Club Merchandise Restock,-240.00,Expense,Merchandise,General,MERCH002
+25/02/2025,Navigation Skills Workshop Registration,380.00,Income,Event Registration,Navigation Workshop,REG013
+28/02/2025,Monthly Banking Fees,-12.50,Expense,Administration,General,BANK006
+
+02/03/2025,Spring Social Planning,125.00,Income,Social Events,Spring Social,SOC006
+05/03/2025,Equipment Purchase - GPS Units (3x),-450.00,Expense,Equipment,General,EQ009
+08/03/2025,Mother's Day Charity Hike,195.00,Income,Fundraising,Charity Challenge,FUND003
+10/03/2025,New Member Registrations (10 members),350.00,Income,Membership,General,MEM007
+12/03/2025,Lake District Navigation Weekend Registration,1080.00,Income,Event Registration,Lake District Navigation,REG014
+15/03/2025,Transport - Minibus to Lake District,-295.00,Expense,Transport,Lake District Navigation,TXN007
+18/03/2025,Accommodation - Helvellyn YHA,-820.00,Expense,Accommodation,Lake District Navigation,ACC006
+20/03/2025,Professional Navigation Instructor,-480.00,Expense,Training,Lake District Navigation,INST003
+22/03/2025,Spring Social Venue Booking,-280.00,Expense,Social Events,Spring Social,SOC007
+25/03/2025,Equipment Replacement - Damaged Tent,-385.00,Expense,Equipment,General,EQ010
+28/03/2025,Club Photography Workshop,65.00,Income,Event Registration,Photography Workshop,REG015
+30/03/2025,Photography Equipment Rental,-120.00,Expense,Equipment,Photography Workshop,RENT002
+31/03/2025,Monthly Banking Fees,-12.50,Expense,Administration,General,BANK007
+
+01/04/2025,Easter Break Planning,0.00,Income,Administration,General,PLAN001
+03/04/2025,Scottish Highlands Expedition Registration,2150.00,Income,Event Registration,Scottish Highlands Expedition,REG016
+05/04/2025,New Member Registrations (8 members),280.00,Income,Membership,General,MEM008
+08/04/2025,Equipment Purchase - Expedition Gear,-1200.00,Expense,Equipment,General,EQ011
+10/04/2025,Expedition Insurance,-185.00,Expense,Insurance,Scottish Highlands Expedition,INS_EXP001
+12/04/2025,Transport - Coach to Scotland,-680.00,Expense,Transport,Scottish Highlands Expedition,TXN008
+15/04/2025,Professional Mountain Guide (3 days),-1350.00,Expense,Training,Scottish Highlands Expedition,GUIDE001
+18/04/2025,Welsh 3000s Challenge Registration,1610.00,Income,Event Registration,Welsh 3000s 2025,REG017
+18/04/2025,Accommodation - Highland Lodge (5 nights),-1400.00,Expense,Accommodation,Scottish Highlands Expedition,ACC007
+20/04/2025,Emergency Shelter Rental,-150.00,Expense,Equipment,Scottish Highlands Expedition,RENT003
+22/04/2025,Food and Provisions,-420.00,Expense,Food & Catering,Scottish Highlands Expedition,FOOD001
+24/04/2025,Welsh 3000s Transport - Minibus Hire,-320.50,Expense,Transport,Welsh 3000s 2025,TXN009
+26/04/2025,Welsh 3000s Accommodation - Snowdonia,-890.00,Expense,Accommodation,Welsh 3000s 2025,ACC008
+28/04/2025,Spring Social Event Registration,165.00,Income,Event Registration,Spring Social,REG018
+30/04/2025,Monthly Banking Fees,-12.50,Expense,Administration,General,BANK008
+
+02/05/2025,May Day Hike Registration,285.00,Income,Event Registration,May Day Hike,REG019
+05/05/2025,Equipment Purchase - Summer Gear,-380.00,Expense,Equipment,General,EQ012
+08/05/2025,New Member Registrations (14 members),490.00,Income,Membership,General,MEM009
+10/05/2025,Annual Equipment Audit and Replacement,-650.00,Expense,Equipment,General,AUDIT002
+12/05/2025,Transport - Local Minibus Hire,-165.00,Expense,Transport,May Day Hike,TXN010
+15/05/2025,Club BBQ Planning Fund,145.00,Income,Social Events,Summer BBQ,SOC008
+18/05/2025,Peak District Multi-day Registration,1320.00,Income,Event Registration,Peak District Multi-day,REG020
+20/05/2025,Professional Wilderness First Aid Course,-580.00,Expense,Training,General,TRN003
+22/05/2025,Transport - Coach to Peak District,-385.00,Expense,Transport,Peak District Multi-day,TXN011
+25/05/2025,Accommodation - Camping Equipment Hire,-220.00,Expense,Accommodation,Peak District Multi-day,CAMP001
+28/05/2025,Summer BBQ Venue and Catering,-285.00,Expense,Social Events,Summer BBQ,BBQ001
+30/05/2025,End of Year Social Registration,195.00,Income,Event Registration,End of Year Social,REG021
+31/05/2025,Monthly Banking Fees,-12.50,Expense,Administration,General,BANK009
+
+01/06/2025,Summer Programme Launch,0.00,Income,Administration,General,SUMMER001
+03/06/2025,Advanced Mountaineering Course Registration,1850.00,Income,Event Registration,Advanced Mountaineering,REG022
+05/06/2025,Equipment Purchase - Technical Climbing Gear,-920.00,Expense,Equipment,General,EQ013
+08/06/2025,New Member Registrations (5 members),175.00,Income,Membership,General,MEM010
+10/06/2025,Professional Mountain Instructor (5 days),-1750.00,Expense,Training,Advanced Mountaineering,INST004
+12/06/2025,Alps Expedition Planning Registration,2850.00,Income,Event Registration,Alps Expedition 2025,REG023
+15/06/2025,Transport - International Coach to Alps,-1200.00,Expense,Transport,Alps Expedition 2025,TXN012
+18/06/2025,Alps Accommodation - Mountain Hut (7 nights),-1680.00,Expense,Accommodation,Alps Expedition 2025,ACC009
+20/06/2025,International Insurance Premium,-285.00,Expense,Insurance,Alps Expedition 2025,INS_INT001
+22/06/2025,Alpine Guide Services (7 days),-2100.00,Expense,Training,Alps Expedition 2025,GUIDE002
+25/06/2025,Equipment Rental - Alpine Gear,-485.00,Expense,Equipment,Alps Expedition 2025,RENT004
+28/06/2025,Emergency Fund Contribution,-150.00,Expense,Administration,Alps Expedition 2025,EMERG001
+30/06/2025,Monthly Banking Fees,-12.50,Expense,Administration,General,BANK010

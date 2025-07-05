@@ -1,6 +1,36 @@
 // js/ui-components.js - Reusable UI components for UMHC Finance System
 
 const UIComponents = {
+    // Theme management for future light/dark mode
+    theme: {
+        current: localStorage.getItem('umhc-theme') || 'light',
+        
+        toggle: () => {
+            UIComponents.theme.current = UIComponents.theme.current === 'light' ? 'dark' : 'light';
+            UIComponents.theme.apply();
+            localStorage.setItem('umhc-theme', UIComponents.theme.current);
+        },
+        
+        apply: () => {
+            document.documentElement.setAttribute('data-theme', UIComponents.theme.current);
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                themeToggle.textContent = UIComponents.theme.current === 'light' ? '🌙' : '☀️';
+                themeToggle.title = `Switch to ${UIComponents.theme.current === 'light' ? 'dark' : 'light'} mode`;
+            }
+        },
+        
+        createToggle: () => {
+            const toggle = Utils.dom.create('button', {
+                id: 'themeToggle',
+                className: 'theme-toggle btn secondary',
+                onclick: 'UIComponents.theme.toggle()',
+                title: `Switch to ${UIComponents.theme.current === 'light' ? 'dark' : 'light'} mode`
+            }, UIComponents.theme.current === 'light' ? '🌙' : '☀️');
+            
+            return toggle;
+        }
+    },
     // Create a loading spinner
     createLoadingSpinner: (size = 'medium') => {
         const spinner = Utils.dom.create('div', {
