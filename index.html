@@ -198,13 +198,10 @@
                 document.getElementById('systemStatus').className = 'status-badge success';
             }
             
-            // Set last updated time
-            document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString('en-GB');
-            
-            // Initialize components (these will be created in later phases)
+            // Initialize components
             try {
-                // For now, just show placeholder data
-                await loadPlaceholderData();
+                // Load real data from files instead of placeholder data
+                await loadRealData();
                 console.log('✅ Dashboard loaded successfully');
             } catch (error) {
                 console.error('❌ Failed to load dashboard:', error);
@@ -212,10 +209,88 @@
             }
         });
 
-        // Placeholder data function (will be replaced with real data manager)
+        // Real data loading function
+        async function loadRealData() {
+            console.log('📊 Loading real financial data...');
+            
+            try {
+                // Load summary data from JSON file
+                const summaryResponse = await fetch(CONFIG.DATA_FILES.SUMMARY);
+                if (!summaryResponse.ok) {
+                    throw new Error(`Failed to load summary: ${summaryResponse.status}`);
+                }
+                const summaryData = await summaryResponse.json();
+                
+                // Load transaction data from CSV file
+                const transactionsResponse = await fetch(CONFIG.DATA_FILES.TRANSACTIONS);
+                if (!transactionsResponse.ok) {
+                    throw new Error(`Failed to load transactions: ${transactionsResponse.status}`);
+                }
+                const csvText = await transactionsResponse.text();
+                const transactions = Utils.parseCSV(csvText);
+                
+                console.log('📈 Loaded data:', {
+                    transactions: transactions.length,
+                    summary: summaryData
+                });
+                
+                // Update the UI with real data
+                updateDashboardWithRealData(summaryData, transactions);
+                
+            } catch (error) {
+                console.error('❌ Error loading data:', error);
+                
+                // Fall back to showing an error message
+                showErrorMessage(`Failed to load financial data: ${error.message}`);
+                
+                // Show basic placeholder to demonstrate structure
+                await loadPlaceholderData();
+            }
+        }
+        
+        // Update dashboard with real data
+        function updateDashboardWithRealData(summary, transactions) {
+            // Update summary cards
+            document.getElementById('totalIncome').textContent = Utils.formatCurrency(summary.totalIncome);
+            document.getElementById('totalExpenses').textContent = Utils.formatCurrency(summary.totalExpenses);
+            document.getElementById('currentBalance').textContent = Utils.formatCurrency(summary.balance);
+            
+            // Update last updated time
+            const lastUpdated = new Date(summary.lastUpdated);
+            document.getElementById('lastUpdated').textContent = Utils.formatDate(lastUpdated);
+            
+            // Populate transactions table
+            const tableBody = document.getElementById('transactionsTableBody');
+            tableBody.innerHTML = '';
+            
+            // Show most recent transactions first
+            const sortedTransactions = [...transactions].sort((a, b) => new Date(b.Date) - new Date(a.Date));
+            const recentTransactions = sortedTransactions.slice(0, 10); // Show last 10
+            
+            recentTransactions.forEach(transaction => {
+                const row = tableBody.insertRow();
+                const amount = parseFloat(transaction.Amount) || 0;
+                
+                row.innerHTML = `
+                    <td>${Utils.formatDate(transaction.Date)}</td>
+                    <td>${transaction.Description}</td>
+                    <td>${transaction.Category}</td>
+                    <td>${transaction.Event || 'General'}</td>
+                    <td class="${amount > 0 ? 'amount-positive' : 'amount-negative'}">
+                        ${Utils.formatCurrency(amount)}
+                    </td>
+                `;
+            });
+            
+            console.log('✅ Dashboard updated with real data');
+        }
+
+        // Placeholder data function (fallback only)
         async function loadPlaceholderData() {
+            console.log('⚠️ Using placeholder data as fallback');
+            
             // Simulate loading delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 500));
             
             // Sample data for demonstration
             const sampleData = {
@@ -224,33 +299,33 @@
                 balance: 420.24,
                 transactions: [
                     {
-                        date: '2025-04-18',
-                        description: 'Welsh 3000s Registration',
-                        category: 'Event Income',
-                        event: 'Welsh 3000s 2025',
-                        amount: 1610.00
+                        Date: '2025-04-18',
+                        Description: 'Welsh 3000s Registration',
+                        Category: 'Event Income',
+                        Event: 'Welsh 3000s 2025',
+                        Amount: '1610.00'
                     },
                     {
-                        date: '2025-04-15',
-                        description: 'Hostel Booking - Snowdonia',
-                        category: 'Accommodation',
-                        event: 'Welsh 3000s 2025',
-                        amount: -1400.00
+                        Date: '2025-04-15',
+                        Description: 'Hostel Booking - Snowdonia',
+                        Category: 'Accommodation',
+                        Event: 'Welsh 3000s 2025',
+                        Amount: '-1400.00'
                     },
                     {
-                        date: '2025-04-10',
-                        description: 'Equipment Maintenance',
-                        category: 'Equipment',
-                        event: 'General',
-                        amount: -89.50
+                        Date: '2025-04-10',
+                        Description: 'Equipment Maintenance',
+                        Category: 'Equipment',
+                        Event: 'General',
+                        Amount: '-89.50'
                     }
                 ]
             };
             
             // Update the UI with sample data
-            document.getElementById('totalIncome').textContent = `£${sampleData.totalIncome.toFixed(2)}`;
-            document.getElementById('totalExpenses').textContent = `£${sampleData.totalExpenses.toFixed(2)}`;
-            document.getElementById('currentBalance').textContent = `£${sampleData.balance.toFixed(2)}`;
+            document.getElementById('totalIncome').textContent = Utils.formatCurrency(sampleData.totalIncome);
+            document.getElementById('totalExpenses').textContent = Utils.formatCurrency(sampleData.totalExpenses);
+            document.getElementById('currentBalance').textContent = Utils.formatCurrency(sampleData.balance);
             
             // Populate transactions table
             const tableBody = document.getElementById('transactionsTableBody');
@@ -258,18 +333,19 @@
             
             sampleData.transactions.forEach(transaction => {
                 const row = tableBody.insertRow();
+                const amount = parseFloat(transaction.Amount);
                 row.innerHTML = `
-                    <td>${new Date(transaction.date).toLocaleDateString('en-GB')}</td>
-                    <td>${transaction.description}</td>
-                    <td>${transaction.category}</td>
-                    <td>${transaction.event}</td>
-                    <td class="${transaction.amount > 0 ? 'amount-positive' : 'amount-negative'}">
-                        £${Math.abs(transaction.amount).toFixed(2)}
+                    <td>${Utils.formatDate(transaction.Date)}</td>
+                    <td>${transaction.Description}</td>
+                    <td>${transaction.Category}</td>
+                    <td>${transaction.Event}</td>
+                    <td class="${amount > 0 ? 'amount-positive' : 'amount-negative'}">
+                        ${Utils.formatCurrency(amount)}
                     </td>
                 `;
             });
             
-            console.log('📊 Sample data loaded');
+            console.log('📊 Fallback placeholder data loaded');
         }
 
         // Utility function for error messages

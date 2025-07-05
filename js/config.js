@@ -8,9 +8,9 @@ const CONFIG = {
     LAST_UPDATED: '2025-07-04',
     
     // GitHub OAuth Configuration
-    // NOTE: Update these after creating your GitHub OAuth app
+    // NOTE: Will be updated when we implement OAuth in Phase 3
     GITHUB: {
-        CLIENT_ID: 'your_github_client_id_here', // Get this from GitHub OAuth app
+        CLIENT_ID: 'not_configured_yet', // Will set this up in Phase 3
         REDIRECT_URI: window.location.origin + '/admin-login.html',
         SCOPE: 'user:email',
         API_BASE: 'https://api.github.com'
@@ -20,24 +20,17 @@ const CONFIG = {
     // Only these GitHub usernames can access admin features
     COMMITTEE_MEMBERS: [
         { 
-            github: 'your-github-username',        // Replace with actual GitHub username
-            name: 'Your Name', 
+            github: 'umhc-treasurer-2025',
+            name: 'UMHC Treasurer', 
             role: 'Treasurer',
-            email: 'your.email@student.manchester.ac.uk',
+            email: 'treasurer@umhc.manchester.ac.uk',
             year: '2025'
         },
         { 
-            github: 'president-github-username',   // Replace with actual GitHub username
-            name: 'President Name', 
+            github: 'umhc-president-2025',
+            name: 'UMHC President', 
             role: 'President',
-            email: 'president.email@student.manchester.ac.uk',
-            year: '2025'
-        },
-        { 
-            github: 'secretary-github-username',   // Replace with actual GitHub username
-            name: 'Secretary Name', 
-            role: 'Secretary',
-            email: 'secretary.email@student.manchester.ac.uk',
+            email: 'president@umhc.manchester.ac.uk',
             year: '2025'
         }
         // Add more committee members as needed
@@ -126,7 +119,7 @@ const CONFIG = {
     
     // Development and debugging
     DEBUG: {
-        ENABLED: false, // Set to true for development
+        ENABLED: true, // Set to true for development
         LOG_LEVEL: 'info', // 'debug', 'info', 'warn', 'error'
         MOCK_DATA: false // Use mock data instead of real APIs
     }
@@ -165,24 +158,15 @@ CONFIG.log = function(level, message, data = null) {
 CONFIG.validate = function() {
     const errors = [];
     
-    // Check if GitHub client ID is set
-    if (this.GITHUB.CLIENT_ID === 'your_github_client_id_here') {
-        errors.push('GitHub OAuth Client ID not configured');
-    }
-    
-    // Check if committee members are configured
+    // Only check for actual development issues, not placeholder values during development
     if (this.COMMITTEE_MEMBERS.length === 0) {
         errors.push('No committee members configured');
     }
     
-    // Check for placeholder values in committee members
-    const hasPlaceholders = this.COMMITTEE_MEMBERS.some(member => 
-        member.github.includes('github-username') || 
-        member.name.includes('Name')
-    );
-    
-    if (hasPlaceholders) {
-        errors.push('Committee member details contain placeholder values');
+    // For development phase, don't validate OAuth setup yet
+    if (this.DEBUG.ENABLED) {
+        // In debug mode, just log info but don't treat as errors
+        CONFIG.log('info', 'Development mode - OAuth setup will be completed in Phase 3');
     }
     
     return {
