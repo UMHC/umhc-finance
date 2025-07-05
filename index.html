@@ -53,7 +53,7 @@
                         <div class="stat-content">
                             <h3>Total Income</h3>
                             <div class="stat-value" id="totalIncome">Loading...</div>
-                            <div class="stat-change positive">+12% from last year</div>
+                            <div class="stat-change" id="incomeChange">Calculating...</div>
                         </div>
                     </div>
                     
@@ -62,7 +62,7 @@
                         <div class="stat-content">
                             <h3>Total Expenses</h3>
                             <div class="stat-value" id="totalExpenses">Loading...</div>
-                            <div class="stat-change neutral">Planning phase</div>
+                            <div class="stat-change" id="expenseChange">Calculating...</div>
                         </div>
                     </div>
                     
@@ -71,16 +71,16 @@
                         <div class="stat-content">
                             <h3>Current Balance</h3>
                             <div class="stat-value" id="currentBalance">Loading...</div>
-                            <div class="stat-change positive">Healthy reserves</div>
+                            <div class="stat-change" id="balanceStatus">Healthy reserves</div>
                         </div>
                     </div>
                     
                     <div class="stat-card members">
                         <div class="stat-icon">👥</div>
                         <div class="stat-content">
-                            <h3>Active Members</h3>
-                            <div class="stat-value" id="memberCount">42</div>
-                            <div class="stat-change positive">Growing community</div>
+                            <h3>Transactions</h3>
+                            <div class="stat-value" id="transactionCount">0</div>
+                            <div class="stat-change" id="transactionStatus">Loading...</div>
                         </div>
                     </div>
                 </div>
@@ -90,28 +90,65 @@
             <section class="charts-section" id="chartsSection">
                 <div class="charts-grid">
                     <div class="chart-container">
-                        <h3>Income vs Expenses (Monthly)</h3>
-                        <canvas id="incomeExpenseChart"></canvas>
+                        <h3>📈 Income vs Expenses (Monthly)</h3>
+                        <canvas id="incomeExpenseChart" width="400" height="200"></canvas>
                     </div>
                     <div class="chart-container">
-                        <h3>Spending by Category</h3>
-                        <canvas id="categoryChart"></canvas>
+                        <h3>🍰 Spending by Category</h3>
+                        <canvas id="categoryChart" width="400" height="200"></canvas>
                     </div>
+                </div>
+            </section>
+
+            <!-- Filters and Controls -->
+            <section class="controls-section" id="controlsSection">
+                <div class="section-header">
+                    <h3>Filter & Search</h3>
+                    <div class="export-controls">
+                        <button class="btn secondary" onclick="exportData('csv')">📊 Export CSV</button>
+                        <button class="btn secondary" onclick="exportData('json')">📄 Export JSON</button>
+                    </div>
+                </div>
+                
+                <div class="filter-controls">
+                    <select id="filterPeriod" onchange="applyFilters()">
+                        <option value="all">All Time</option>
+                        <option value="thisYear">This Year</option>
+                        <option value="thisQuarter">This Quarter</option>
+                        <option value="thisMonth">This Month</option>
+                    </select>
+                    
+                    <select id="filterCategory" onchange="applyFilters()">
+                        <option value="all">All Categories</option>
+                    </select>
+                    
+                    <select id="filterEvent" onchange="applyFilters()">
+                        <option value="all">All Events</option>
+                    </select>
+                    
+                    <input type="text" id="searchTransactions" placeholder="Search transactions..." 
+                           oninput="performSearch()" autocomplete="off">
+                    
+                    <button class="btn secondary" onclick="clearFilters()">Clear Filters</button>
                 </div>
             </section>
 
             <!-- Recent Transactions -->
             <section class="transactions-section" id="transactionsSection">
                 <div class="section-header">
-                    <h3>Recent Transactions</h3>
-                    <div class="filter-controls">
-                        <select id="filterPeriod">
-                            <option value="all">All Time</option>
-                            <option value="year">This Year</option>
-                            <option value="quarter">This Quarter</option>
-                            <option value="month">This Month</option>
+                    <h3>Transactions</h3>
+                    <div class="transaction-controls">
+                        <select id="sortBy" onchange="updateTransactionTable()">
+                            <option value="Date">Sort by Date</option>
+                            <option value="Amount">Sort by Amount</option>
+                            <option value="Description">Sort by Description</option>
+                            <option value="Category">Sort by Category</option>
                         </select>
-                        <input type="text" id="searchTransactions" placeholder="Search transactions...">
+                        <select id="sortOrder" onchange="updateTransactionTable()">
+                            <option value="desc">Newest First</option>
+                            <option value="asc">Oldest First</option>
+                        </select>
+                        <span id="transactionCounter">Showing 0 transactions</span>
                     </div>
                 </div>
                 
@@ -124,14 +161,22 @@
                                 <th>Category</th>
                                 <th>Event</th>
                                 <th>Amount</th>
+                                <th>Type</th>
                             </tr>
                         </thead>
                         <tbody id="transactionsTableBody">
                             <tr>
-                                <td colspan="5" class="loading-row">Loading transactions...</td>
+                                <td colspan="6" class="loading-row">Loading transactions...</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="pagination" id="pagination" style="display: none;">
+                    <button id="prevPage" class="btn secondary" onclick="changePage(-1)">Previous</button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button id="nextPage" class="btn secondary" onclick="changePage(1)">Next</button>
                 </div>
             </section>
 
@@ -141,6 +186,7 @@
                     <p><strong>System Status:</strong> <span id="systemStatus" class="status-badge">Initializing...</span></p>
                     <p><strong>Last Updated:</strong> <span id="lastUpdated">Loading...</span></p>
                     <p><strong>Data Source:</strong> Committee-managed financial records</p>
+                    <p><strong>Filtered Results:</strong> <span id="filteredCount">0</span> of <span id="totalCount">0</span> transactions</p>
                 </div>
             </section>
         </div>
@@ -183,6 +229,12 @@
 
     <!-- Page-specific JavaScript -->
     <script>
+        // Global variables
+        let dataManager;
+        let chartRenderer;
+        let currentPage = 1;
+        const itemsPerPage = 20;
+
         // Main dashboard initialization
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('🏔️ UMHC Finance Dashboard Loading...');
@@ -198,162 +250,238 @@
                 document.getElementById('systemStatus').className = 'status-badge success';
             }
             
-            // Initialize components
+            // Initialize system
             try {
-                // Load real data from files instead of placeholder data
-                await loadRealData();
+                await initializeSystem();
                 console.log('✅ Dashboard loaded successfully');
             } catch (error) {
                 console.error('❌ Failed to load dashboard:', error);
                 showErrorMessage('Failed to load financial data. Please refresh the page.');
+                document.getElementById('systemStatus').textContent = 'Error';
+                document.getElementById('systemStatus').className = 'status-badge error';
             }
         });
 
-        // Real data loading function
-        async function loadRealData() {
-            console.log('📊 Loading real financial data...');
+        // Initialize the financial system
+        async function initializeSystem() {
+            // Create instances of our classes
+            dataManager = new DataManager();
+            chartRenderer = new ChartRenderer();
             
-            try {
-                // Load summary data from JSON file
-                const summaryResponse = await fetch(CONFIG.DATA_FILES.SUMMARY);
-                if (!summaryResponse.ok) {
-                    throw new Error(`Failed to load summary: ${summaryResponse.status}`);
-                }
-                const summaryData = await summaryResponse.json();
-                
-                // Load transaction data from CSV file
-                const transactionsResponse = await fetch(CONFIG.DATA_FILES.TRANSACTIONS);
-                if (!transactionsResponse.ok) {
-                    throw new Error(`Failed to load transactions: ${transactionsResponse.status}`);
-                }
-                const csvText = await transactionsResponse.text();
-                const transactions = Utils.parseCSV(csvText);
-                
-                console.log('📈 Loaded data:', {
-                    transactions: transactions.length,
-                    summary: summaryData
-                });
-                
-                // Update the UI with real data
-                updateDashboardWithRealData(summaryData, transactions);
-                
-            } catch (error) {
-                console.error('❌ Error loading data:', error);
-                
-                // Fall back to showing an error message
-                showErrorMessage(`Failed to load financial data: ${error.message}`);
-                
-                // Show basic placeholder to demonstrate structure
-                await loadPlaceholderData();
-            }
+            // Make chartRenderer globally available for window resize
+            window.chartRenderer = chartRenderer;
+            
+            // Load data
+            const data = await dataManager.loadData();
+            
+            // Update UI with loaded data
+            updateDashboardStats(data.summary, dataManager.calculateTotals());
+            
+            // Initialize charts
+            await chartRenderer.initializeDashboard(dataManager);
+            
+            // Set up filters
+            initializeFilters();
+            
+            // Update transaction table
+            updateTransactionTable();
+            
+            // Set last updated time
+            document.getElementById('lastUpdated').textContent = Utils.formatDate(data.summary.lastUpdated);
+            
+            Utils.log('info', 'System initialized successfully');
         }
-        
-        // Update dashboard with real data
-        function updateDashboardWithRealData(summary, transactions) {
-            // Update summary cards
-            document.getElementById('totalIncome').textContent = Utils.formatCurrency(summary.totalIncome);
-            document.getElementById('totalExpenses').textContent = Utils.formatCurrency(summary.totalExpenses);
-            document.getElementById('currentBalance').textContent = Utils.formatCurrency(summary.balance);
+
+        // Update dashboard statistics
+        function updateDashboardStats(summary, totals) {
+            document.getElementById('totalIncome').textContent = Utils.formatCurrency(totals.income);
+            document.getElementById('totalExpenses').textContent = Utils.formatCurrency(totals.expenses);
+            document.getElementById('currentBalance').textContent = Utils.formatCurrency(totals.balance);
+            document.getElementById('transactionCount').textContent = Utils.formatNumber(totals.count);
             
-            // Update last updated time
-            const lastUpdated = new Date(summary.lastUpdated);
-            document.getElementById('lastUpdated').textContent = Utils.formatDate(lastUpdated);
+            // Update status indicators
+            document.getElementById('incomeChange').textContent = `${totals.count} transactions`;
+            document.getElementById('expenseChange').textContent = `${dataManager.getUniqueValues('Category').length} categories`;
+            document.getElementById('transactionStatus').textContent = 'Live data';
             
-            // Populate transactions table
+            // Update totals display
+            document.getElementById('totalCount').textContent = dataManager.transactions.length;
+            document.getElementById('filteredCount').textContent = totals.count;
+        }
+
+        // Initialize filter dropdowns
+        function initializeFilters() {
+            const categories = dataManager.getUniqueValues('Category');
+            const events = dataManager.getUniqueValues('Event');
+            
+            // Populate category filter
+            const categorySelect = document.getElementById('filterCategory');
+            categorySelect.innerHTML = '<option value="all">All Categories</option>';
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
+            });
+            
+            // Populate event filter
+            const eventSelect = document.getElementById('filterEvent');
+            eventSelect.innerHTML = '<option value="all">All Events</option>';
+            events.forEach(event => {
+                const option = document.createElement('option');
+                option.value = event;
+                option.textContent = event;
+                eventSelect.appendChild(option);
+            });
+        }
+
+        // Apply filters and update everything
+        function applyFilters() {
+            const filters = {
+                period: document.getElementById('filterPeriod').value,
+                category: document.getElementById('filterCategory').value,
+                event: document.getElementById('filterEvent').value,
+                search: document.getElementById('searchTransactions').value
+            };
+            
+            // Apply filters to data
+            dataManager.filterTransactions(filters);
+            
+            // Update statistics
+            const totals = dataManager.calculateTotals();
+            updateDashboardStats(dataManager.summary, totals);
+            
+            // Update charts
+            chartRenderer.updateCharts(dataManager);
+            
+            // Update transaction table
+            currentPage = 1; // Reset to first page
+            updateTransactionTable();
+            
+            // Update filtered count
+            document.getElementById('filteredCount').textContent = totals.count;
+            
+            Utils.log('info', 'Filters applied', { filters, resultCount: totals.count });
+        }
+
+        // Perform search with debouncing
+        const performSearch = Utils.debounce(applyFilters, 300);
+
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('filterPeriod').value = 'all';
+            document.getElementById('filterCategory').value = 'all';
+            document.getElementById('filterEvent').value = 'all';
+            document.getElementById('searchTransactions').value = '';
+            
+            applyFilters();
+        }
+
+        // Update transaction table with current data
+        function updateTransactionTable() {
+            const sortBy = document.getElementById('sortBy').value;
+            const sortOrder = document.getElementById('sortOrder').value;
+            
+            // Get sorted transactions
+            const sortedTransactions = dataManager.sortTransactions(sortBy, sortOrder);
+            
+            // Paginate results
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageTransactions = sortedTransactions.slice(startIndex, endIndex);
+            
+            // Update table
             const tableBody = document.getElementById('transactionsTableBody');
             tableBody.innerHTML = '';
             
-            // Show most recent transactions first
-            const sortedTransactions = [...transactions].sort((a, b) => new Date(b.Date) - new Date(a.Date));
-            const recentTransactions = sortedTransactions.slice(0, 10); // Show last 10
+            if (pageTransactions.length === 0) {
+                const row = tableBody.insertRow();
+                row.innerHTML = '<td colspan="6" class="loading-row">No transactions found</td>';
+                document.getElementById('pagination').style.display = 'none';
+                return;
+            }
             
-            recentTransactions.forEach(transaction => {
+            pageTransactions.forEach(transaction => {
                 const row = tableBody.insertRow();
                 const amount = parseFloat(transaction.Amount) || 0;
                 
                 row.innerHTML = `
                     <td>${Utils.formatDate(transaction.Date)}</td>
-                    <td>${transaction.Description}</td>
-                    <td>${transaction.Category}</td>
-                    <td>${transaction.Event || 'General'}</td>
+                    <td title="${transaction.Description}">${transaction.Description}</td>
+                    <td><span class="category-tag">${transaction.Category}</span></td>
+                    <td><span class="event-tag">${transaction.Event}</span></td>
                     <td class="${amount > 0 ? 'amount-positive' : 'amount-negative'}">
                         ${Utils.formatCurrency(amount)}
                     </td>
+                    <td><span class="type-badge ${transaction.Type.toLowerCase()}">${transaction.Type}</span></td>
                 `;
             });
             
-            console.log('✅ Dashboard updated with real data');
+            // Update pagination
+            updatePagination(sortedTransactions.length);
+            
+            // Update counter
+            document.getElementById('transactionCounter').textContent = 
+                `Showing ${pageTransactions.length} of ${sortedTransactions.length} transactions`;
         }
 
-        // Placeholder data function (fallback only)
-        async function loadPlaceholderData() {
-            console.log('⚠️ Using placeholder data as fallback');
+        // Update pagination controls
+        function updatePagination(totalTransactions) {
+            const totalPages = Math.ceil(totalTransactions / itemsPerPage);
             
-            // Simulate loading delay
-            await new Promise(resolve => setTimeout(resolve, 500));
+            if (totalPages <= 1) {
+                document.getElementById('pagination').style.display = 'none';
+                return;
+            }
             
-            // Sample data for demonstration
-            const sampleData = {
-                totalIncome: 2474.00,
-                totalExpenses: 2053.76,
-                balance: 420.24,
-                transactions: [
-                    {
-                        Date: '2025-04-18',
-                        Description: 'Welsh 3000s Registration',
-                        Category: 'Event Income',
-                        Event: 'Welsh 3000s 2025',
-                        Amount: '1610.00'
-                    },
-                    {
-                        Date: '2025-04-15',
-                        Description: 'Hostel Booking - Snowdonia',
-                        Category: 'Accommodation',
-                        Event: 'Welsh 3000s 2025',
-                        Amount: '-1400.00'
-                    },
-                    {
-                        Date: '2025-04-10',
-                        Description: 'Equipment Maintenance',
-                        Category: 'Equipment',
-                        Event: 'General',
-                        Amount: '-89.50'
-                    }
-                ]
-            };
-            
-            // Update the UI with sample data
-            document.getElementById('totalIncome').textContent = Utils.formatCurrency(sampleData.totalIncome);
-            document.getElementById('totalExpenses').textContent = Utils.formatCurrency(sampleData.totalExpenses);
-            document.getElementById('currentBalance').textContent = Utils.formatCurrency(sampleData.balance);
-            
-            // Populate transactions table
-            const tableBody = document.getElementById('transactionsTableBody');
-            tableBody.innerHTML = '';
-            
-            sampleData.transactions.forEach(transaction => {
-                const row = tableBody.insertRow();
-                const amount = parseFloat(transaction.Amount);
-                row.innerHTML = `
-                    <td>${Utils.formatDate(transaction.Date)}</td>
-                    <td>${transaction.Description}</td>
-                    <td>${transaction.Category}</td>
-                    <td>${transaction.Event}</td>
-                    <td class="${amount > 0 ? 'amount-positive' : 'amount-negative'}">
-                        ${Utils.formatCurrency(amount)}
-                    </td>
-                `;
-            });
-            
-            console.log('📊 Fallback placeholder data loaded');
+            document.getElementById('pagination').style.display = 'flex';
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage === totalPages;
         }
 
-        // Utility function for error messages
+        // Change page
+        function changePage(direction) {
+            const sortBy = document.getElementById('sortBy').value;
+            const sortOrder = document.getElementById('sortOrder').value;
+            const sortedTransactions = dataManager.sortTransactions(sortBy, sortOrder);
+            const totalPages = Math.ceil(sortedTransactions.length / itemsPerPage);
+            
+            currentPage += direction;
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            
+            updateTransactionTable();
+        }
+
+        // Export data
+        function exportData(format) {
+            try {
+                dataManager.downloadExport(format);
+                showSuccessMessage(`Data exported successfully as ${format.toUpperCase()}`);
+            } catch (error) {
+                Utils.log('error', 'Export failed', error);
+                showErrorMessage(`Failed to export data: ${error.message}`);
+            }
+        }
+
+        // Utility functions for messages
         function showErrorMessage(message) {
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error-message';
             errorDiv.textContent = message;
             document.querySelector('.main-content').prepend(errorDiv);
+            
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        function showSuccessMessage(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.textContent = message;
+            document.querySelector('.main-content').prepend(successDiv);
+            
+            setTimeout(() => successDiv.remove(), 3000);
         }
 
         // Navigation handling
