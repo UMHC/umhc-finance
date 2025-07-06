@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - UMHC Finance</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    
+    <style>
+        .admin-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .admin-header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .admin-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .admin-user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .admin-tabs {
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+            padding: 0;
+        }
+        
+        .admin-tabs .container {
+            display: flex;
+            gap: 0;
+        }
+        
+        .tab-button {
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .tab-button.active {
+            border-bottom-color: #28a745;
+            color: #28a745;
+        }
+        
+        .tab-button:hover {
+            background: #f8f9fa;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 2rem 0;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ced4da;
+            border-radius: 10px;
+            padding: 3rem;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #e8f5e8;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: #28a745;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-text {
+            font-size: 1.1rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .upload-hint {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .processing-status {
+            display: none;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-top: 2rem;
+        }
+        
+        .processing-step {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .processing-step.active {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .processing-step.complete {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .processing-step.error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+        
+        .step-icon {
+            font-size: 1.5rem;
+        }
+        
+        .extracted-data {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-top: 2rem;
+        }
+        
+        .confidence-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .confidence-high { background: #d4edda; color: #155724; }
+        .confidence-medium { background: #fff3cd; color: #856404; }
+        .confidence-low { background: #f8d7da; color: #721c24; }
+        
+        .transaction-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #28a745;
+            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .data-management {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .management-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .management-card h3 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .quick-stat {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        
+        .quick-stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #28a745;
+        }
+        
+        .quick-stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        
+        @media (max-width: 768px) {
+            .admin-header .container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .transaction-form {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div class="container">
+            <div class="admin-title">
+                <span>🔧</span>
+                UMHC Finance Admin
+            </div>
+            <div class="admin-user-info">
+                <span id="userInfo">Loading...</span>
+                <a href="#" class="logout-btn" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="admin-tabs">
+        <div class="container">
+            <button class="tab-button active" onclick="switchTab('ai-extraction')">🤖 AI Extraction</button>
+            <button class="tab-button" onclick="switchTab('manual-entry')">✏️ Manual Entry</button>
+            <button class="tab-button" onclick="switchTab('data-management')">📊 Data Management</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- AI Extraction Tab -->
+            <section id="ai-extraction" class="tab-content active">
+                <h2>AI Document Processing</h2>
+                <p>Upload expense365 PDFs or screenshots for automatic data extraction.</p>
+                
+                <!-- Upload Area -->
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()" 
+                     ondrop="handleFileDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Drop files here or click to upload</div>
+                    <div class="upload-hint">Supports: PDF, PNG, JPG (max 10MB)</div>
+                    <input type="file" id="fileInput" class="file-input" accept=".pdf,.png,.jpg,.jpeg" onchange="handleFileSelect(event)" multiple>
+                </div>
+                
+                <!-- Processing Status -->
+                <div id="processingStatus" class="processing-status">
+                    <h3>Processing Document...</h3>
+                    <div id="processingSteps">
+                        <!-- Steps will be added dynamically -->
+                    </div>
+                </div>
+                
+                <!-- Extracted Data Review -->
+                <div id="extractedData" class="extracted-data" style="display: none;">
+                    <h3>Review Extracted Data</h3>
+                    <p>AI has extracted the following transactions. Please review and modify if needed:</p>
+                    
+                    <div id="extractedTransactions">
+                        <!-- Extracted transactions will be displayed here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Manual Entry Tab -->
+            <section id="manual-entry" class="tab-content">
+                <h2>Manual Transaction Entry</h2>
+                <p>Add transactions manually or correct AI-extracted data.</p>
+                
+                <div class="extracted-data">
+                    <form id="transactionForm" class="transaction-form">
+                        <div class="form-group">
+                            <label for="transactionDate">Date *</label>
+                            <input type="date" id="transactionDate" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="transactionDescription">Description *</label>
+                            <input type="text" id="transactionDescription" placeholder="e.g., Welsh 3000s Registration" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="transactionAmount">Amount (£) *</label>
+                            <input type="number" id="transactionAmount" step="0.01" placeholder="0.00" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="transactionType">Type *</label>
+                            <select id="transactionType" required>
+                                <option value="">Select type</option>
+                                <option value="Income">Income</option>
+                                <option value="Expense">Expense</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="transactionCategory">Category *</label>
+                            <select id="transactionCategory" required>
+                                <option value="">Select category</option>
+                                <!-- Categories will be populated from CONFIG -->
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="transactionEvent">Event</label>
+                            <input type="text" id="transactionEvent" placeholder="e.g., Welsh 3000s 2025">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="transactionReference">Reference</label>
+                            <input type="text" id="transactionReference" placeholder="e.g., INV001, REG001">
+                        </div>
+                    </form>
+                    
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-success" onclick="saveTransaction()">💾 Save Transaction</button>
+                        <button type="button" class="btn secondary" onclick="clearForm()">🗑️ Clear Form</button>
+                        <button type="button" class="btn secondary" onclick="suggestCategory()">🤖 Suggest Category</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Management Tab -->
+            <section id="data-management" class="tab-content">
+                <h2>Data Management</h2>
+                
+                <!-- Quick Stats -->
+                <div class="quick-stats">
+                    <div class="quick-stat">
+                        <div class="quick-stat-value" id="totalTransactions">0</div>
+                        <div class="quick-stat-label">Total Transactions</div>
+                    </div>
+                    <div class="quick-stat">
+                        <div class="quick-stat-value" id="currentBalance">£0.00</div>
+                        <div class="quick-stat-label">Current Balance</div>
+                    </div>
+                    <div class="quick-stat">
+                        <div class="quick-stat-value" id="lastUpdated">Never</div>
+                        <div class="quick-stat-label">Last Updated</div>
+                    </div>
+                </div>
+                
+                <div class="data-management">
+                    <div class="management-card">
+                        <h3>📥 Import Data</h3>
+                        <p>Import transactions from CSV files or backup data.</p>
+                        <button class="btn secondary" onclick="importData()">Import CSV</button>
+                    </div>
+                    
+                    <div class="management-card">
+                        <h3>📤 Export Data</h3>
+                        <p>Download current financial data for backup or analysis.</p>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn secondary" onclick="exportData('csv')">Export CSV</button>
+                            <button class="btn secondary" onclick="exportData('json')">Export JSON</button>
+                        </div>
+                    </div>
+                    
+                    <div class="management-card">
+                        <h3>🔄 Sync Data</h3>
+                        <p>Refresh data from the main repository and update cache.</p>
+                        <button class="btn secondary" onclick="refreshData()">Refresh Data</button>
+                    </div>
+                    
+                    <div class="management-card">
+                        <h3>📋 View Public Dashboard</h3>
+                        <p>See how the data appears to club members.</p>
+                        <a href="index.html" class="btn secondary">View Dashboard</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Include your existing JavaScript modules -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/data-manager.js"></script>
+    <script src="js/ui-components.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/ai-extraction.js"></script>
+
+    <!-- Admin-specific JavaScript -->
+    <script>
+        let authToken = null;
+        let userInfo = null;
+        let dataManager = null;
+
+        // Initialize admin dashboard
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🔧 Admin Dashboard Loading...');
+            
+            try {
+                // Check authentication
+                await checkAuthentication();
+                
+                // Initialize data manager
+                dataManager = new DataManager();
+                await dataManager.loadData();
+                
+                // Populate form options
+                populateFormOptions();
+                
+                // Update quick stats
+                updateQuickStats();
+                
+                console.log('✅ Admin Dashboard loaded successfully');
+            } catch (error) {
+                console.error('❌ Failed to load admin dashboard:', error);
+                handleAuthError('Failed to load admin dashboard');
+            }
+        });
+
+        // Check if user is authenticated
+        async function checkAuthentication() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            
+            if (token) {
+                // Store token and clear URL
+                authToken = token;
+                window.history.replaceState({}, '', window.location.pathname);
+                
+                // Verify token with auth server
+                try {
+                    const response = await fetch('https://umhc-auth-server.vercel.app/api/auth-verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: authToken })
+                    });
+                    
+                    if (response.ok) {
+                        userInfo = await response.json();
+                        document.getElementById('userInfo').textContent = `Welcome, ${userInfo.name || userInfo.login}`;
+                    } else {
+                        throw new Error('Token verification failed');
+                    }
+                } catch (error) {
+                    throw new Error('Authentication verification failed');
+                }
+            } else {
+                // No token, redirect to login
+                window.location.href = 'admin-login.html';
+            }
+        }
+
+        // Handle authentication errors
+        function handleAuthError(message) {
+            alert(message + '\n\nYou will be redirected to the login page.');
+            window.location.href = 'admin-login.html';
+        }
+
+        // Switch between tabs
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        // File handling functions
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('dragover');
+        }
+
+        function handleFileDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+            const files = event.dataTransfer.files;
+            processFiles(files);
+        }
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            processFiles(files);
+        }
+
+        // Process uploaded files
+        async function processFiles(files) {
+            if (files.length === 0) return;
+            
+            const file = files[0]; // Process first file
+            
+            // Validate file
+            if (!validateFile(file)) return;
+            
+            // Show processing status
+            showProcessingStatus();
+            
+            try {
+                // Step 1: File uploaded
+                updateProcessingStep('upload', 'complete', 'File uploaded successfully');
+                
+                // Step 2: Extract text
+                updateProcessingStep('extract', 'active', 'Extracting text from document...');
+                const extractedText = await extractTextFromFile(file);
+                updateProcessingStep('extract', 'complete', 'Text extracted successfully');
+                
+                // Step 3: AI processing
+                updateProcessingStep('ai', 'active', 'Processing with AI...');
+                const extractedData = await processWithAI(extractedText);
+                updateProcessingStep('ai', 'complete', 'AI processing complete');
+                
+                // Step 4: Display results
+                updateProcessingStep('review', 'active', 'Ready for review');
+                displayExtractedData(extractedData);
+                
+            } catch (error) {
+                console.error('File processing error:', error);
+                updateProcessingStep('error', 'error', `Error: ${error.message}`);
+            }
+        }
+
+        // Validate uploaded file
+        function validateFile(file) {
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+            
+            if (file.size > maxSize) {
+                alert('File too large. Maximum size is 10MB.');
+                return false;
+            }
+            
+            if (!allowedTypes.includes(file.type)) {
+                alert('Unsupported file type. Please upload PDF, PNG, or JPG files.');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Show processing status
+        function showProcessingStatus() {
+            const statusDiv = document.getElementById('processingStatus');
+            statusDiv.style.display = 'block';
+            
+            const stepsDiv = document.getElementById('processingSteps');
+            stepsDiv.innerHTML = `
+                <div class="processing-step active" id="step-upload">
+                    <div class="step-icon">📤</div>
+                    <div>Uploading file...</div>
+                </div>
+                <div class="processing-step" id="step-extract">
+                    <div class="step-icon">📄</div>
+                    <div>Extracting text...</div>
+                </div>
+                <div class="processing-step" id="step-ai">
+                    <div class="step-icon">🤖</div>
+                    <div>AI processing...</div>
+                </div>
+                <div class="processing-step" id="step-review">
+                    <div class="step-icon">👁️</div>
+                    <div>Ready for review</div>
+                </div>
+            `;
+        }
+
+        // Update processing step status
+        function updateProcessingStep(stepId, status, message) {
+            const stepElement = document.getElementById(`step-${stepId}`);
+            if (stepElement) {
+                stepElement.className = `processing-step ${status}`;
+                stepElement.querySelector('div:last-child').textContent = message;
+            }
+        }
+
+        // Extract text from file (placeholder - would use PDF.js or OCR)
+        async function extractTextFromFile(file) {
+            // Simulate processing delay
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // For demo purposes, return sample expense365 text
+            return `Statement at 05/07/2025
+Hiking Club UMSU01
+Description Cash In Cash Out
+18/04/2025 Welsh 3000s Registration 1610.00
+18/04/2025 Hostel Booking - Canolfan Corris 1400.00
+15/04/2025 Transport - Minibus Hire 320.50`;
+        }
+
+        // Process with AI (placeholder - would use Claude API)
+        async function processWithAI(text) {
+            // Simulate AI processing delay
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // For demo purposes, return parsed transactions
+            return [
+                {
+                    date: '18/04/2025',
+                    description: 'Welsh 3000s Registration',
+                    amount: 1610.00,
+                    type: 'Income',
+                    category: 'Event Registration',
+                    event: 'Welsh 3000s 2025',
+                    confidence: 0.95
+                },
+                {
+                    date: '18/04/2025',
+                    description: 'Hostel Booking - Canolfan Corris',
+                    amount: -1400.00,
+                    type: 'Expense',
+                    category: 'Accommodation',
+                    event: 'Welsh 3000s 2025',
+                    confidence: 0.92
+                },
+                {
+                    date: '15/04/2025',
+                    description: 'Transport - Minibus Hire',
+                    amount: -320.50,
+                    type: 'Expense',
+                    category: 'Transport',
+                    event: 'Welsh 3000s 2025',
+                    confidence: 0.88
+                }
+            ];
+        }
+
+        // Display extracted data for review
+        function displayExtractedData(transactions) {
+            const dataDiv = document.getElementById('extractedData');
+            const transactionsDiv = document.getElementById('extractedTransactions');
+            
+            let html = '';
+            transactions.forEach((transaction, index) => {
+                const confidenceClass = transaction.confidence > 0.9 ? 'confidence-high' : 
+                                       transaction.confidence > 0.7 ? 'confidence-medium' : 'confidence-low';
+                
+                html += `
+                    <div class="transaction-review" style="border: 1px solid #e9ecef; padding: 1rem; margin: 1rem 0; border-radius: 8px;">
+                        <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 1rem;">
+                            <strong>Transaction ${index + 1}</strong>
+                            <span class="confidence-badge ${confidenceClass}">
+                                ${Math.round(transaction.confidence * 100)}% confidence
+                            </span>
+                        </div>
+                        <div class="transaction-form">
+                            <div class="form-group">
+                                <label>Date</label>
+                                <input type="date" value="${transaction.date}" data-field="date" data-index="${index}">
+                            </div>
+                            <div class="form-group">
+                                <label>Description</label>
+                                <input type="text" value="${transaction.description}" data-field="description" data-index="${index}">
+                            </div>
+                            <div class="form-group">
+                                <label>Amount (£)</label>
+                                <input type="number" step="0.01" value="${Math.abs(transaction.amount)}" data-field="amount" data-index="${index}">
+                            </div>
+                            <div class="form-group">
+                                <label>Type</label>
+                                <select data-field="type" data-index="${index}">
+                                    <option value="Income" ${transaction.type === 'Income' ? 'selected' : ''}>Income</option>
+                                    <option value="Expense" ${transaction.type === 'Expense' ? 'selected' : ''}>Expense</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Category</label>
+                                <select data-field="category" data-index="${index}">
+                                    ${CONFIG.getAllCategories().map(cat => 
+                                        `<option value="${cat}" ${cat === transaction.category ? 'selected' : ''}>${cat}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Event</label>
+                                <input type="text" value="${transaction.event || ''}" data-field="event" data-index="${index}">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                <div class="action-buttons">
+                    <button class="btn btn-success" onclick="saveAllTransactions()">💾 Save All Transactions</button>
+                    <button class="btn secondary" onclick="hideExtractedData()">❌ Cancel</button>
+                </div>
+            `;
+            
+            transactionsDiv.innerHTML = html;
+            dataDiv.style.display = 'block';
+        }
+
+        // Save all extracted transactions
+        function saveAllTransactions() {
+            // In a real implementation, this would save to your data store
+            alert('Transactions saved successfully!');
+            hideExtractedData();
+            updateQuickStats();
+        }
+
+        // Hide extracted data
+        function hideExtractedData() {
+            document.getElementById('extractedData').style.display = 'none';
+            document.getElementById('processingStatus').style.display = 'none';
+        }
+
+        // Populate form options
+        function populateFormOptions() {
+            const categorySelect = document.getElementById('transactionCategory');
+            CONFIG.getAllCategories().forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
+            });
+        }
+
+        // Save manual transaction
+        function saveTransaction() {
+            const form = document.getElementById('transactionForm');
+            const formData = new FormData(form);
+            
+            // Validate required fields
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            // In a real implementation, this would save to your data store
+            alert('Transaction saved successfully!');
+            clearForm();
+            updateQuickStats();
+        }
+
+        // Clear form
+        function clearForm() {
+            document.getElementById('transactionForm').reset();
+        }
+
+        // Suggest category based on description
+        function suggestCategory() {
+            const description = document.getElementById('transactionDescription').value;
+            const suggested = CONFIG.suggestCategory(description);
+            
+            if (suggested) {
+                document.getElementById('transactionCategory').value = suggested;
+                UIComponents.showToast(`Suggested category: ${suggested}`, 'info');
+            } else {
+                UIComponents.showToast('No category suggestion available', 'info');
+            }
+        }
+
+        // Update quick stats
+        function updateQuickStats() {
+            if (dataManager) {
+                const totals = dataManager.calculateTotals();
+                document.getElementById('totalTransactions').textContent = totals.count;
+                document.getElementById('currentBalance').textContent = Utils.formatCurrency(totals.balance);
+                document.getElementById('lastUpdated').textContent = 'Just now';
+            }
+        }
+
+        // Data management functions
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Process CSV import
+                    alert('CSV import functionality would be implemented here');
+                }
+            };
+            input.click();
+        }
+
+        function exportData(format) {
+            if (dataManager) {
+                dataManager.downloadExport(format);
+                UIComponents.showToast(`Data exported as ${format.toUpperCase()}`, 'success');
+            }
+        }
+
+        function refreshData() {
+            location.reload();
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                authToken = null;
+                userInfo = null;
+                window.location.href = 'admin-login.html';
+            }
+        }
+    </script>
+</body>
+</html>
