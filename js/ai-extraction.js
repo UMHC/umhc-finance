@@ -1,4 +1,5 @@
 // js/ai-extraction.js - AI-powered document processing for UMHC Finance System
+// IMPROVED VERSION for expense365 format
 
 class AIExtractor {
     constructor() {
@@ -24,10 +25,6 @@ class AIExtractor {
 
     // Process a file and extract financial data
     async processFile(file) {
-        if (!this.isConfigured()) {
-            throw new Error('AI not configured. Please set your Claude API key.');
-        }
-
         Utils.log('info', 'Starting file processing', { 
             fileName: file.name, 
             fileType: file.type,
@@ -46,13 +43,21 @@ class AIExtractor {
                 textLength: extractedText.length 
             });
 
-            // Step 2: Process with AI
-            const aiResult = await this.processWithAI(extractedText);
+            // Step 2: Process with AI or fallback
+            let aiResult;
+            
+            if (this.isConfigured()) {
+                Utils.log('info', 'Using Claude AI for processing');
+                aiResult = await this.processWithAI(extractedText);
+            } else {
+                Utils.log('info', 'Using improved expense365 parser (no API key)');
+                aiResult = this.parseExpense365Format(extractedText);
+            }
             
             // Step 3: Validate and format results
             const validatedTransactions = this.validateExtractedData(aiResult);
 
-            Utils.log('info', 'AI processing complete', { 
+            Utils.log('info', 'Processing complete', { 
                 transactionsFound: validatedTransactions.length 
             });
 
@@ -64,7 +69,7 @@ class AIExtractor {
                     fileName: file.name,
                     fileType: file.type,
                     extractedAt: new Date().toISOString(),
-                    aiModel: this.model
+                    processingMethod: this.isConfigured() ? 'Claude AI' : 'expense365 Parser'
                 }
             };
 
@@ -72,6 +77,275 @@ class AIExtractor {
             Utils.log('error', 'File processing failed', error);
             throw error;
         }
+    }
+
+    // IMPROVED: Parse expense365 format specifically
+    parseExpense365Format(text) {
+        Utils.log('info', 'Parsing expense365 format...');
+        
+        const transactions = [];
+        const lines = text.split('\n');
+        
+        let currentDate = null;
+        let balanceCarriedForward = null;
+        
+        // Find balance carried forward
+        const balanceMatch = text.match(/Balance Bfwd\s*:\s*(-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
+        if (balanceMatch) {
+            balanceCarriedForward = parseFloat(balanceMatch[1].replace(/,/g, ''));
+            Utils.log('info', 'Found balance carried forward:', balanceCarriedForward);
+        }
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            // Skip header lines
+            if (line.includes('Statement at') || line.includes('Hiking Club') || 
+                line.includes('Description') || line.includes('Cash In') ||
+                line.includes('Cost Centre') || line.includes('Page')) {
+                continue;
+            }
+            
+            // Try to parse as transaction line
+            const transaction = this.parseExpense365TransactionLine(line);
+            if (transaction) {
+                transactions.push(transaction);
+            }
+        }
+        
+        Utils.log('info', 'expense365 parsing complete', {
+            linesProcessed: lines.length,
+            transactionsFound: transactions.length
+        });
+        
+        return {
+            transactions,
+            summary: {
+                totalTransactions: transactions.length,
+                totalIncome: transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0),
+                totalExpenses: Math.abs(transactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0)),
+                averageConfidence: 0.85, // Higher confidence for structured parsing
+                balanceCarriedForward: balanceCarriedForward
+            }
+        };
+    }
+
+    // Parse a single expense365 transaction line
+    parseExpense365TransactionLine(line) {
+        // expense365 format: DD/MM/YYYY Description Amount
+        // Sometimes amounts appear in separate "Cash In" and "Cash Out" columns
+        
+        // Pattern for date at start of line
+        const datePattern = /^(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+)/;
+        const dateMatch = line.match(datePattern);
+        
+        if (!dateMatch) {
+            return null; // Not a transaction line
+        }
+        
+        const [, dateStr, restOfLine] = dateMatch;
+        
+        // Extract amount(s) from the line
+        const amounts = this.extractAmountsFromLine(restOfLine);
+        
+        if (amounts.length === 0) {
+            return null; // No valid amounts found
+        }
+        
+        // Get description (everything except the amount at the end)
+        let description = restOfLine;
+        
+        // Remove amounts from description
+        amounts.forEach(amount => {
+            const amountStr = amount.original;
+            const lastIndex = description.lastIndexOf(amountStr);
+            if (lastIndex !== -1) {
+                description = description.substring(0, lastIndex);
+            }
+        });
+        
+        description = description.trim();
+        
+        if (!description) {
+            return null; // No description
+        }
+        
+        // Use the last/largest amount as the transaction amount
+        const mainAmount = amounts[amounts.length - 1];
+        
+        // Determine if this is income or expense based on context
+        const isIncome = this.determineTransactionType(description, mainAmount.value);
+        const finalAmount = isIncome ? Math.abs(mainAmount.value) : -Math.abs(mainAmount.value);
+        
+        // Categorize the transaction
+        const category = this.categorizeTransaction(description);
+        const event = this.determineEvent(description);
+        
+        return {
+            date: this.normalizeDate(dateStr),
+            description: this.cleanDescription(description),
+            amount: finalAmount,
+            type: isIncome ? 'Income' : 'Expense',
+            category: category,
+            event: event,
+            confidence: 0.85,
+            reference: this.extractReference(description),
+            notes: 'Extracted from expense365 format'
+        };
+    }
+
+    // Extract amounts from a line (handles various formats)
+    extractAmountsFromLine(text) {
+        // Pattern for amounts: optional minus, digits with optional commas, optional decimal
+        const amountPattern = /(-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g;
+        const amounts = [];
+        
+        let match;
+        while ((match = amountPattern.exec(text)) !== null) {
+            const originalStr = match[1];
+            const value = parseFloat(originalStr.replace(/,/g, ''));
+            
+            // Only consider significant amounts (> £1)
+            if (!isNaN(value) && Math.abs(value) >= 1) {
+                amounts.push({
+                    original: originalStr,
+                    value: value
+                });
+            }
+        }
+        
+        return amounts;
+    }
+
+    // Determine if transaction is income or expense
+    determineTransactionType(description, amount) {
+        const desc = description.toLowerCase();
+        
+        // Income indicators
+        const incomeKeywords = [
+            'membership', 'ticket', 'registration', 'grant', 'funding', 'refund',
+            'fpr ref', 'bgc ref', 'payment', 'deposit', 'collection'
+        ];
+        
+        // Expense indicators  
+        const expenseKeywords = [
+            'hire', 'fuel', 'diesel', 'petrol', 'food', 'accommodation', 'hotel', 'hostel',
+            'insurance', 'parking', 'toll', 'uber', 'taxi', 'equipment', 'training',
+            'website', 'printing', 'coach', 'van', 'minibus'
+        ];
+        
+        // Check for income keywords
+        for (const keyword of incomeKeywords) {
+            if (desc.includes(keyword)) {
+                return true;
+            }
+        }
+        
+        // Check for expense keywords
+        for (const keyword of expenseKeywords) {
+            if (desc.includes(keyword)) {
+                return false;
+            }
+        }
+        
+        // If amount is positive and no clear indicators, assume income
+        // If amount is negative, assume expense
+        return amount > 0;
+    }
+
+    // Categorize transaction based on description
+    categorizeTransaction(description) {
+        const desc = description.toLowerCase();
+        
+        // Category mapping based on UMHC's real transactions
+        const categoryMap = {
+            'Event Registration': ['ticket', 'registration', 'member ticket', 'non member', 'freshers', 'leader ticket'],
+            'Membership': ['membership', 'student membership', 'associate membership'],
+            'Transport': ['fuel', 'diesel', 'petrol', 'hire', 'coach', 'minibus', 'van hire', 'parking', 'toll', 'uber', 'taxi'],
+            'Accommodation': ['accommodation', 'hostel', 'hotel', 'booking', 'centre', 'lodge'],
+            'Equipment': ['equipment', 'helmet', 'radio', 'compass', 'rope', 'crampons', 'kit'],
+            'Food & Catering': ['food', 'catering', 'meal', 'curry', 'party payment'],
+            'Insurance': ['insurance', 'cover'],
+            'Training': ['training', 'course', 'first aid'],
+            'Administration': ['website', 'printing', 'admin', 'bank', 'fees'],
+            'Grants & Funding': ['grant', 'funding', 'fund it'],
+            'Social Events': ['social', 'party', 'bowling', 'ninja', 'barbecue', 'ceilidh'],
+            'Penalties & Fines': ['fine', 'penalty', 'traffic', 'toll fine'],
+            'External Memberships': ['bmc', 'mountaineering']
+        };
+        
+        // Find matching category
+        for (const [category, keywords] of Object.entries(categoryMap)) {
+            for (const keyword of keywords) {
+                if (desc.includes(keyword)) {
+                    return category;
+                }
+            }
+        }
+        
+        return 'Uncategorized';
+    }
+
+    // Determine event from description
+    determineEvent(description) {
+        const desc = description.toLowerCase();
+        
+        // Event patterns based on UMHC's actual events
+        const eventMap = {
+            'Welsh 3000s 2025': ['welsh 3000s', 'w3k', 'w3s'],
+            'Nethy 2025': ['nethy'],
+            'Torridon 2025': ['torridon'],
+            'Glenridding 2025': ['glenridding'],
+            'Snowdonia 2025': ['snowdonia'],
+            'Cadair Idris 2024': ['cadair'],
+            'Skye 2024': ['skye'],
+            'Ennerdale 2025': ['ennerdale'],
+            'Borrowdale 2024': ['borrowdale'],
+            'Langdales': ['langdale'],
+            'Helvellyn': ['helvellyn'],
+            'Braithwaite': ['braithwaite'],
+            'Keswick': ['keswick'],
+            'Coniston': ['coniston'],
+            'Grasmere': ['grasmere'],
+            'Snowdon': ['snowdon'],
+            'Malham': ['malham'],
+            'Christmas Events': ['christmas'],
+            'Freshers Events': ['freshers'],
+            'Social Events': ['social', 'party', 'bowling', 'ninja'],
+            'Annual Dinner': ['annual dinner']
+        };
+        
+        // Find matching event
+        for (const [event, keywords] of Object.entries(eventMap)) {
+            for (const keyword of keywords) {
+                if (desc.includes(keyword)) {
+                    return event;
+                }
+            }
+        }
+        
+        return 'General';
+    }
+
+    // Extract reference from description
+    extractReference(description) {
+        // Look for reference patterns
+        const refPatterns = [
+            /\((\d+)\)/, // Numbers in parentheses
+            /ref\s+([^\s]+)/i, // "ref" followed by reference
+            /FPR\s+ref\s+([^\s]+)/i, // "FPR ref" pattern
+            /BGC\s+ref\s+([^\s]+)/i, // "BGC ref" pattern
+        ];
+        
+        for (const pattern of refPatterns) {
+            const match = description.match(pattern);
+            if (match) {
+                return match[1];
+            }
+        }
+        
+        return '';
     }
 
     // Extract text from different file types
@@ -101,7 +375,7 @@ class AIExtractor {
                 try {
                     // Load PDF.js library dynamically if not already loaded
                     if (typeof pdfjsLib === 'undefined') {
-                        await this.loadPDFJS();
+                        await loadPDFJSLibrary();
                     }
 
                     const typedArray = new Uint8Array(this.result);
@@ -121,6 +395,11 @@ class AIExtractor {
                         fullText += pageText + '\n';
                     }
 
+                    Utils.log('info', 'PDF text extraction complete', {
+                        pages: pdf.numPages,
+                        textLength: fullText.length
+                    });
+
                     resolve(fullText.trim());
                     
                 } catch (error) {
@@ -136,12 +415,9 @@ class AIExtractor {
         });
     }
 
-    // Extract text from image using Tesseract.js OCR
+    // Extract text from image using simulated OCR
     async extractTextFromImage(file) {
         return new Promise((resolve, reject) => {
-            // For now, simulate OCR processing
-            // In a real implementation, you would use Tesseract.js or a cloud OCR service
-            
             const fileReader = new FileReader();
             
             fileReader.onload = async function() {
@@ -149,16 +425,16 @@ class AIExtractor {
                     // Simulate OCR processing delay
                     await new Promise(resolve => setTimeout(resolve, 3000));
                     
-                    // Return simulated OCR result
-                    // In production, this would be actual OCR text
+                    // In production, this would use Tesseract.js or cloud OCR
+                    Utils.log('info', 'OCR processing complete (simulated)');
+                    
+                    // Return sample OCR result for now
                     const simulatedOCRText = `
 Statement at 05/07/2025
 Hiking Club UMSU01
-Description Cash In Cash Out
 18/04/2025 Welsh 3000s Registration 1610.00
 18/04/2025 Hostel Booking - Canolfan Corris 1400.00
 15/04/2025 Transport - Minibus Hire 320.50
-10/04/2025 Equipment Maintenance 89.50
                     `;
                     
                     resolve(simulatedOCRText.trim());
@@ -176,7 +452,7 @@ Description Cash In Cash Out
         });
     }
 
-    // Process extracted text with Claude AI
+    // Process extracted text with Claude AI (when API key is available)
     async processWithAI(extractedText) {
         const prompt = this.buildExtractionPrompt(extractedText);
         
@@ -208,19 +484,12 @@ Description Cash In Cash Out
             const result = await response.json();
             const aiResponse = result.content[0].text;
 
-            Utils.log('info', 'Claude API response received', { 
-                responseLength: aiResponse.length 
-            });
-
-            // Parse the AI response
+            Utils.log('info', 'Claude API response received');
             return this.parseAIResponse(aiResponse);
 
         } catch (error) {
             Utils.log('error', 'Claude API request failed', error);
-            
-            // Fallback to basic parsing if AI fails
-            Utils.log('info', 'Falling back to basic parsing');
-            return this.fallbackBasicParsing(extractedText);
+            throw error;
         }
     }
 
@@ -228,224 +497,54 @@ Description Cash In Cash Out
     buildExtractionPrompt(extractedText) {
         return `You are a financial data extraction specialist for the University of Manchester Hiking Club (UMHC). 
 
-Your task is to extract transaction data from this expense365 statement text and format it as JSON.
+Extract ALL transactions from this expense365 statement and format as JSON.
 
-IMPORTANT GUIDELINES:
-1. Extract ALL transactions that have dates, descriptions, and amounts
-2. Positive amounts are typically income (registrations, memberships, grants)
-3. Negative amounts or amounts in "Cash Out" column are expenses
-4. Categorize transactions using these categories: ${CONFIG.getAllCategories().join(', ')}
-5. Try to identify the event each transaction relates to
-6. Provide a confidence score (0.0-1.0) for each extraction
-7. For unclear amounts, use your best judgment based on context
+KEY PATTERNS TO RECOGNIZE:
+- Lines starting with DD/MM/YYYY are transaction lines
+- Positive amounts or "Cash In" column = Income
+- Negative amounts or "Cash Out" column = Expenses
+- FPR ref/BGC ref usually = Income from member payments
+- Hire/Fuel/Accommodation usually = Expenses
 
-CATEGORIES GUIDE:
-- Event Registration: Ticket sales, registration fees
-- Membership: Annual membership fees
-- Accommodation: Hostels, hotels, booking fees
-- Transport: Minibus hire, fuel, parking, tolls
-- Equipment: Gear purchases, maintenance
-- Training: Courses, instructor fees
-- Food & Catering: Meals, catering for events
-- Grants & Funding: External funding received
-- Insurance: Vehicle and activity insurance
-- Administration: Banking, website, admin costs
+CATEGORIES: ${CONFIG.getAllCategories().join(', ')}
 
 TEXT TO PROCESS:
 ${extractedText}
 
-Return your response as a JSON object with this exact structure:
+Return JSON with this structure:
 {
   "transactions": [
     {
       "date": "DD/MM/YYYY",
-      "description": "Clear description",
+      "description": "Description",
       "amount": 123.45,
-      "type": "Income|Expense",
-      "category": "Category from list above",
-      "event": "Event name or General",
-      "confidence": 0.95,
-      "notes": "Any relevant notes or assumptions"
+      "type": "Income|Expense", 
+      "category": "Category",
+      "event": "Event name",
+      "confidence": 0.95
     }
   ],
   "summary": {
-    "totalTransactions": 3,
-    "totalIncome": 1500.00,
-    "totalExpenses": 800.00,
-    "averageConfidence": 0.92
+    "totalTransactions": 150,
+    "totalIncome": 50000.00,
+    "totalExpenses": 45000.00
   }
-}
-
-Be thorough but accurate. If you're unsure about something, lower the confidence score rather than guessing.`;
+}`;
     }
 
-    // Parse AI response JSON
+    // Continue with existing methods...
     parseAIResponse(aiResponse) {
         try {
-            // Clean the response text
             let cleanResponse = aiResponse.trim();
-            
-            // Extract JSON from markdown code blocks if present
             const jsonMatch = cleanResponse.match(/```(?:json)?\n?(.*?)\n?```/s);
             if (jsonMatch) {
                 cleanResponse = jsonMatch[1];
             }
-
-            // Parse JSON
-            const parsed = JSON.parse(cleanResponse);
-            
-            // Validate structure
-            if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
-                throw new Error('Invalid response structure: missing transactions array');
-            }
-
-            return parsed;
-
+            return JSON.parse(cleanResponse);
         } catch (error) {
-            Utils.log('error', 'Failed to parse AI response', { 
-                error: error.message,
-                response: aiResponse.substring(0, 500) + '...'
-            });
-            
-            // Try to extract transactions using regex as fallback
-            return this.extractTransactionsWithRegex(aiResponse);
+            Utils.log('error', 'Failed to parse AI response', error);
+            throw new Error('Invalid AI response format');
         }
-    }
-
-    // Fallback basic parsing when AI fails
-    fallbackBasicParsing(text) {
-        Utils.log('info', 'Using fallback basic parsing');
-        
-        const transactions = [];
-        const lines = text.split('\n');
-        
-        for (const line of lines) {
-            const transaction = this.parseTransactionLine(line);
-            if (transaction) {
-                transactions.push(transaction);
-            }
-        }
-
-        return {
-            transactions,
-            summary: {
-                totalTransactions: transactions.length,
-                totalIncome: transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0),
-                totalExpenses: Math.abs(transactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0)),
-                averageConfidence: 0.6 // Lower confidence for basic parsing
-            }
-        };
-    }
-
-    // Parse a single transaction line using regex
-    parseTransactionLine(line) {
-        // Look for date pattern (DD/MM/YYYY or DD/MM/YY)
-        const datePattern = /(\d{1,2}\/\d{1,2}\/\d{2,4})/;
-        const dateMatch = line.match(datePattern);
-        
-        if (!dateMatch) return null;
-
-        // Look for amount pattern (numbers with optional decimal places)
-        const amountPattern = /(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g;
-        const amounts = line.match(amountPattern);
-        
-        if (!amounts) return null;
-
-        // Extract description (text between date and first amount)
-        const dateIndex = line.indexOf(dateMatch[0]);
-        const firstAmountIndex = line.indexOf(amounts[0]);
-        
-        let description = line.substring(dateIndex + dateMatch[0].length, firstAmountIndex).trim();
-        
-        // Clean up description
-        description = description.replace(/^\s*-?\s*/, '').trim();
-        
-        if (!description) return null;
-
-        // Parse amount (assume last amount is the transaction amount)
-        const amountStr = amounts[amounts.length - 1].replace(/,/g, '');
-        const amount = parseFloat(amountStr);
-        
-        if (isNaN(amount)) return null;
-
-        // Determine type and apply sign
-        const type = amount > 0 || line.toLowerCase().includes('income') ? 'Income' : 'Expense';
-        const finalAmount = type === 'Expense' ? -Math.abs(amount) : Math.abs(amount);
-
-        // Suggest category based on description
-        const category = CONFIG.suggestCategory(description) || 'Uncategorized';
-
-        return {
-            date: this.normalizeDate(dateMatch[0]),
-            description: this.cleanDescription(description),
-            amount: finalAmount,
-            type,
-            category,
-            event: this.guessEvent(description),
-            confidence: 0.7, // Medium confidence for regex parsing
-            notes: 'Extracted using basic parsing'
-        };
-    }
-
-    // Normalize date format
-    normalizeDate(dateStr) {
-        try {
-            const parts = dateStr.split('/');
-            if (parts.length !== 3) return dateStr;
-            
-            let [day, month, year] = parts;
-            
-            // Pad day and month
-            day = day.padStart(2, '0');
-            month = month.padStart(2, '0');
-            
-            // Handle 2-digit years
-            if (year.length === 2) {
-                year = year > 50 ? '19' + year : '20' + year;
-            }
-            
-            return `${day}/${month}/${year}`;
-        } catch (error) {
-            return dateStr;
-        }
-    }
-
-    // Clean transaction description
-    cleanDescription(description) {
-        return description
-            .replace(/\s+/g, ' ')
-            .replace(/^[-\s]+|[-\s]+$/g, '')
-            .trim();
-    }
-
-    // Guess event based on description
-    guessEvent(description) {
-        const desc = description.toLowerCase();
-        
-        // Common event patterns
-        const eventPatterns = {
-            'welsh 3000s': 'Welsh 3000s 2025',
-            'nethy': 'Nethy 2025',
-            'torridon': 'Torridon 2025',
-            'glenridding': 'Glenridding 2025',
-            'snowdonia': 'Snowdonia 2025',
-            'cadair': 'Cadair Idris 2024',
-            'keswick': 'Keswick Weekend',
-            'langdale': 'Langdale Weekend',
-            'borrowdale': 'Borrowdale Weekend',
-            'helvellyn': 'Helvellyn Weekend',
-            'freshers': 'Freshers Events',
-            'christmas': 'Christmas Events',
-            'social': 'Social Events'
-        };
-
-        for (const [pattern, event] of Object.entries(eventPatterns)) {
-            if (desc.includes(pattern)) {
-                return event;
-            }
-        }
-
-        return 'General';
     }
 
     // Validate extracted data
@@ -458,32 +557,24 @@ Be thorough but accurate. If you're unsure about something, lower the confidence
 
         for (const transaction of aiResult.transactions) {
             try {
-                // Validate required fields
                 if (!transaction.date || !transaction.description || transaction.amount === undefined) {
-                    Utils.log('warn', 'Skipping invalid transaction - missing required fields', transaction);
                     continue;
                 }
 
-                // Validate date
                 if (!Utils.validate.date(transaction.date)) {
-                    Utils.log('warn', 'Skipping transaction with invalid date', transaction);
                     continue;
                 }
 
-                // Validate amount
                 const amount = parseFloat(transaction.amount);
                 if (isNaN(amount)) {
-                    Utils.log('warn', 'Skipping transaction with invalid amount', transaction);
                     continue;
                 }
 
-                // Ensure category is valid
                 const allCategories = CONFIG.getAllCategories();
                 const category = allCategories.includes(transaction.category) 
                     ? transaction.category 
                     : 'Uncategorized';
 
-                // Create validated transaction
                 const validTransaction = {
                     date: this.normalizeDate(transaction.date),
                     description: this.cleanDescription(transaction.description),
@@ -503,82 +594,65 @@ Be thorough but accurate. If you're unsure about something, lower the confidence
             }
         }
 
-        Utils.log('info', 'Transaction validation complete', {
-            original: aiResult.transactions.length,
-            valid: validTransactions.length
-        });
-
         return validTransactions;
     }
 
-    // Extract transactions using regex fallback
-    extractTransactionsWithRegex(text) {
-        // This is a simplified fallback method
-        const transactions = [];
-        
-        // Try to find JSON-like patterns in the response
-        const jsonPattern = /"date":\s*"([^"]+)"[\s\S]*?"description":\s*"([^"]+)"[\s\S]*?"amount":\s*([0-9.-]+)/g;
-        
-        let match;
-        while ((match = jsonPattern.exec(text)) !== null) {
-            const [_, date, description, amountStr] = match;
-            const amount = parseFloat(amountStr);
+    // Utility methods
+    normalizeDate(dateStr) {
+        try {
+            const parts = dateStr.split('/');
+            if (parts.length !== 3) return dateStr;
             
-            if (Utils.validate.date(date) && !isNaN(amount)) {
-                transactions.push({
-                    date: this.normalizeDate(date),
-                    description: this.cleanDescription(description),
-                    amount: amount,
-                    type: amount > 0 ? 'Income' : 'Expense',
-                    category: CONFIG.suggestCategory(description) || 'Uncategorized',
-                    event: this.guessEvent(description),
-                    confidence: 0.6,
-                    notes: 'Extracted using regex fallback'
-                });
+            let [day, month, year] = parts;
+            day = day.padStart(2, '0');
+            month = month.padStart(2, '0');
+            
+            if (year.length === 2) {
+                year = year > 50 ? '19' + year : '20' + year;
             }
+            
+            return `${day}/${month}/${year}`;
+        } catch (error) {
+            return dateStr;
         }
-
-        return {
-            transactions,
-            summary: {
-                totalTransactions: transactions.length,
-                totalIncome: transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0),
-                totalExpenses: Math.abs(transactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0)),
-                averageConfidence: 0.6
-            }
-        };
     }
 
-    // Load PDF.js library dynamically
-    async loadPDFJS() {
-        return new Promise((resolve, reject) => {
-            if (typeof pdfjsLib !== 'undefined') {
-                resolve();
-                return;
-            }
-
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
-            script.onload = () => {
-                // Set up PDF.js worker
-                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-                resolve();
-            };
-            script.onerror = () => reject(new Error('Failed to load PDF.js'));
-            document.head.appendChild(script);
-        });
+    cleanDescription(description) {
+        return description
+            .replace(/\s+/g, ' ')
+            .replace(/^[-\s]+|[-\s]+$/g, '')
+            .trim();
     }
 
-    // Get processing statistics
     getProcessingStats() {
         return {
             isConfigured: this.isConfigured(),
             model: this.model,
             maxTokens: this.maxTokens,
             confidenceThreshold: this.confidenceThreshold,
-            supportedFormats: ['PDF', 'PNG', 'JPG', 'JPEG']
+            supportedFormats: ['PDF', 'PNG', 'JPG', 'JPEG'],
+            processingMethod: this.isConfigured() ? 'Claude AI' : 'expense365 Parser'
         };
     }
+}
+
+// Load PDF.js library dynamically
+async function loadPDFJSLibrary() {
+    return new Promise((resolve, reject) => {
+        if (typeof pdfjsLib !== 'undefined') {
+            resolve();
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+        script.onload = () => {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+            resolve();
+        };
+        script.onerror = () => reject(new Error('Failed to load PDF.js'));
+        document.head.appendChild(script);
+    });
 }
 
 // Create global AI extractor instance
@@ -588,4 +662,4 @@ const aiExtractor = new AIExtractor();
 window.AIExtractor = AIExtractor;
 window.aiExtractor = aiExtractor;
 
-Utils.log('info', 'AI Extraction module loaded successfully');
+Utils.log('info', 'Enhanced AI Extraction module loaded successfully');
