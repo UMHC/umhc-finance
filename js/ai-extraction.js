@@ -1,26 +1,123 @@
 // js/ai-extraction.js - AI-powered document processing for UMHC Finance System
-// IMPROVED VERSION for expense365 format
+// SIMPLIFIED VERSION - API key input with Vercel proxy
 
 class AIExtractor {
     constructor() {
-        this.apiKey = null; // Will be set by user or stored securely
-        this.apiEndpoint = CONFIG.API_ENDPOINTS.CLAUDE;
-        this.model = CONFIG.AI.MODEL;
-        this.maxTokens = CONFIG.AI.MAX_TOKENS;
-        this.confidenceThreshold = CONFIG.AI.CONFIDENCE_THRESHOLD;
+        this.apiKey = null;
+        this.model = 'claude-3-sonnet-20240229';
+        this.maxTokens = 4000;
+        this.confidenceThreshold = 0.7;
         
         Utils.log('info', 'AIExtractor initialized');
     }
 
-    // Set API key for Claude
+    // Set API key
     setApiKey(apiKey) {
+        if (!apiKey || typeof apiKey !== 'string') {
+            throw new Error('Invalid API key provided');
+        }
+        
+        if (!apiKey.startsWith('sk-ant-api')) {
+            throw new Error('Invalid API key format. Should start with "sk-ant-api"');
+        }
+        
         this.apiKey = apiKey;
-        Utils.log('info', 'API key configured');
+        Utils.log('info', 'API key configured successfully');
     }
 
     // Check if AI is configured and ready
     isConfigured() {
         return !!this.apiKey;
+    }
+
+    // NEW: Generate manual prompt for claude.ai
+    generateManualPrompt(extractedText) {
+        if (!extractedText || extractedText.trim().length === 0) {
+            throw new Error('No extracted text provided for manual prompt generation');
+        }
+
+        const prompt = `You are a financial data extraction specialist for the University of Manchester Hiking Club (UMHC). 
+
+Extract ALL transactions from this expense365 statement and format as JSON.
+
+KEY PATTERNS TO RECOGNIZE:
+- Lines starting with DD/MM/YYYY are transaction lines
+- Positive amounts or "Cash In" column = Income
+- Negative amounts or "Cash Out" column = Expenses
+- FPR ref/BGC ref usually = Income from member payments
+- Hire/Fuel/Accommodation usually = Expenses
+
+CATEGORIES TO USE: ${this.getAllCategories().join(', ')}
+
+INSTRUCTIONS:
+1. Parse each transaction line carefully
+2. Determine if it's Income or Expense based on context
+3. Categorize using the categories above
+4. Assign confidence score (0.0 to 1.0)
+5. Extract event names where possible
+
+TEXT TO PROCESS:
+${extractedText}
+
+Return ONLY a JSON object with this exact structure:
+{
+  "transactions": [
+    {
+      "date": "DD/MM/YYYY",
+      "description": "Description text",
+      "amount": 123.45,
+      "type": "Income",
+      "category": "Event Registration",
+      "event": "Welsh 3000s 2025",
+      "confidence": 0.95,
+      "reference": "",
+      "notes": ""
+    }
+  ],
+  "summary": {
+    "totalTransactions": 150,
+    "totalIncome": 50000.00,
+    "totalExpenses": 45000.00,
+    "averageConfidence": 0.85
+  }
+}
+
+IMPORTANT: 
+- Return ONLY the JSON object, no other text
+- Use positive amounts for Income, negative amounts for Expenses
+- Include ALL transactions found in the document
+- Be as accurate as possible with dates and amounts`;
+
+        return prompt;
+    }
+
+    // NEW: Get all available categories (using CONFIG if available, or fallback)
+    getAllCategories() {
+        try {
+            if (typeof CONFIG !== 'undefined' && CONFIG.getAllCategories) {
+                return CONFIG.getAllCategories();
+            }
+        } catch (error) {
+            console.warn('CONFIG not available, using fallback categories');
+        }
+        
+        // Fallback categories based on UMHC's real transactions
+        return [
+            'Event Registration',
+            'Membership', 
+            'Transport',
+            'Accommodation',
+            'Equipment',
+            'Food & Catering',
+            'Insurance',
+            'Training',
+            'Administration',
+            'Grants & Funding',
+            'Social Events',
+            'Penalties & Fines',
+            'External Memberships',
+            'Uncategorized'
+        ];
     }
 
     // Process a file and extract financial data
@@ -43,14 +140,14 @@ class AIExtractor {
                 textLength: extractedText.length 
             });
 
-            // Step 2: Process with AI or fallback
+            // Step 2: Process with AI if configured, otherwise use fallback parsing
             let aiResult;
             
-            if (this.isConfigured()) {
-                Utils.log('info', 'Using Claude AI for processing');
-                aiResult = await this.processWithAI(extractedText);
+            if (this.isConfigured() && this.proxyAvailable) {
+                Utils.log('info', 'Using Claude API via proxy for processing');
+                aiResult = await this.processWithProxy(extractedText);
             } else {
-                Utils.log('info', 'Using improved expense365 parser (no API key)');
+                Utils.log('info', 'Using expense365 parser (no API/proxy available)');
                 aiResult = this.parseExpense365Format(extractedText);
             }
             
@@ -69,7 +166,7 @@ class AIExtractor {
                     fileName: file.name,
                     fileType: file.type,
                     extractedAt: new Date().toISOString(),
-                    processingMethod: this.isConfigured() ? 'Claude AI' : 'expense365 Parser'
+                    processingMethod: this.isConfigured() && this.proxyAvailable ? 'Claude API via Proxy' : 'expense365 Parser'
                 }
             };
 
@@ -452,8 +549,12 @@ Hiking Club UMSU01
         });
     }
 
-    // Process extracted text with Claude AI (when API key is available)
+    // ENHANCED: Process extracted text with Claude AI (when API key is available)
     async processWithAI(extractedText) {
+        if (!this.isConfigured()) {
+            throw new Error('API key not configured. Please set your Claude API key first.');
+        }
+
         const prompt = this.buildExtractionPrompt(extractedText);
         
         try {
@@ -506,7 +607,7 @@ KEY PATTERNS TO RECOGNIZE:
 - FPR ref/BGC ref usually = Income from member payments
 - Hire/Fuel/Accommodation usually = Expenses
 
-CATEGORIES: ${CONFIG.getAllCategories().join(', ')}
+CATEGORIES: ${this.getAllCategories().join(', ')}
 
 TEXT TO PROCESS:
 ${extractedText}
@@ -532,18 +633,29 @@ Return JSON with this structure:
 }`;
     }
 
-    // Continue with existing methods...
+    // Parse AI response (handles both API and manual responses)
     parseAIResponse(aiResponse) {
         try {
             let cleanResponse = aiResponse.trim();
+            
+            // Remove markdown code blocks if present
             const jsonMatch = cleanResponse.match(/```(?:json)?\n?(.*?)\n?```/s);
             if (jsonMatch) {
                 cleanResponse = jsonMatch[1];
             }
-            return JSON.parse(cleanResponse);
+            
+            // Parse JSON
+            const parsed = JSON.parse(cleanResponse);
+            
+            // Validate structure
+            if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
+                throw new Error('Invalid response format: missing transactions array');
+            }
+            
+            return parsed;
         } catch (error) {
             Utils.log('error', 'Failed to parse AI response', error);
-            throw new Error('Invalid AI response format');
+            throw new Error(`Invalid AI response format: ${error.message}`);
         }
     }
 
@@ -554,23 +666,30 @@ Return JSON with this structure:
         }
 
         const validTransactions = [];
+        const allCategories = this.getAllCategories();
 
         for (const transaction of aiResult.transactions) {
             try {
+                // Validate required fields
                 if (!transaction.date || !transaction.description || transaction.amount === undefined) {
+                    Utils.log('warn', 'Skipping transaction with missing required fields', transaction);
                     continue;
                 }
 
-                if (!Utils.validate.date(transaction.date)) {
+                // Validate date format
+                if (!this.isValidDate(transaction.date)) {
+                    Utils.log('warn', 'Skipping transaction with invalid date', transaction);
                     continue;
                 }
 
+                // Validate amount
                 const amount = parseFloat(transaction.amount);
                 if (isNaN(amount)) {
+                    Utils.log('warn', 'Skipping transaction with invalid amount', transaction);
                     continue;
                 }
 
-                const allCategories = CONFIG.getAllCategories();
+                // Validate category
                 const category = allCategories.includes(transaction.category) 
                     ? transaction.category 
                     : 'Uncategorized';
@@ -595,6 +714,22 @@ Return JSON with this structure:
         }
 
         return validTransactions;
+    }
+
+    // NEW: Validate date format
+    isValidDate(dateStr) {
+        // Accept DD/MM/YYYY format
+        const datePattern = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+        if (!datePattern.test(dateStr)) {
+            return false;
+        }
+        
+        const [day, month, year] = dateStr.split('/').map(Number);
+        const date = new Date(year, month - 1, day);
+        
+        return date.getFullYear() === year && 
+               date.getMonth() === month - 1 && 
+               date.getDate() === day;
     }
 
     // Utility methods
@@ -624,15 +759,55 @@ Return JSON with this structure:
             .trim();
     }
 
+    // NEW: Get processing stats for display (browser version)
     getProcessingStats() {
         return {
-            isConfigured: this.isConfigured(),
+            isConfigured: false, // API doesn't work in browser
             model: this.model,
             maxTokens: this.maxTokens,
             confidenceThreshold: this.confidenceThreshold,
             supportedFormats: ['PDF', 'PNG', 'JPG', 'JPEG'],
-            processingMethod: this.isConfigured() ? 'Claude AI' : 'expense365 Parser'
+            processingMethod: 'Manual Processing (Browser-Compatible)',
+            apiEndpoint: 'Not available in browser (CORS restriction)',
+            note: 'Direct API calls blocked by browser security policy'
         };
+    }
+
+    // NEW: Test API connection
+    async testApiConnection() {
+        if (!this.isConfigured()) {
+            throw new Error('API key not configured');
+        }
+
+        try {
+            const response = await fetch(this.apiEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': this.apiKey,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: this.model,
+                    max_tokens: 10,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: 'Hello'
+                        }
+                    ]
+                })
+            });
+
+            if (response.ok) {
+                return { success: true, message: 'API connection successful' };
+            } else {
+                const errorText = await response.text();
+                return { success: false, message: `API test failed: ${errorText}` };
+            }
+        } catch (error) {
+            return { success: false, message: `API test failed: ${error.message}` };
+        }
     }
 }
 
@@ -662,4 +837,4 @@ const aiExtractor = new AIExtractor();
 window.AIExtractor = AIExtractor;
 window.aiExtractor = aiExtractor;
 
-Utils.log('info', 'Enhanced AI Extraction module loaded successfully');
+Utils.log('info', 'Simplified AI Extraction module loaded - API key input with Vercel proxy support');
