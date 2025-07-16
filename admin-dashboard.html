@@ -688,6 +688,7 @@
                 if (response.ok) {
                     const result = await response.json();
                     alert('✅ API test successful!\n\nResponse: ' + result.content);
+                    updateApiKeyStatus(); // Update the UI to show API is configured
                 } else {
                     const error = await response.json();
                     alert('❌ API test failed: ' + error.error);
@@ -924,7 +925,7 @@
                 // Step 3: AI processing
                 updateProcessingStep('ai', 'active', 'Processing with Claude API...');
 
-                const result = await aiExtractor.processWithAPI(extractedText, apiKey, authToken);
+                const result = await aiExtractor.processWithAI(extractedText, apiKey, authToken);
                 updateProcessingStep('ai', 'complete', 'AI processing complete');
 
                 // Step 4: Display results

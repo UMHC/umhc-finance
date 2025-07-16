@@ -7,7 +7,7 @@ class AIExtractor {
         this.model = 'claude-3-sonnet-20240229';
         this.maxTokens = 4000;
         this.confidenceThreshold = 0.7;
-        
+
         Utils.log('info', 'AIExtractor initialized');
     }
 
@@ -16,11 +16,11 @@ class AIExtractor {
         if (!apiKey || typeof apiKey !== 'string') {
             throw new Error('Invalid API key provided');
         }
-        
+
         if (!apiKey.startsWith('sk-ant-api')) {
             throw new Error('Invalid API key format. Should start with "sk-ant-api"');
         }
-        
+
         this.apiKey = apiKey;
         Utils.log('info', 'API key configured successfully');
     }
@@ -100,11 +100,11 @@ IMPORTANT:
         } catch (error) {
             console.warn('CONFIG not available, using fallback categories');
         }
-        
+
         // Fallback categories based on UMHC's real transactions
         return [
             'Event Registration',
-            'Membership', 
+            'Membership',
             'Transport',
             'Accommodation',
             'Equipment',
@@ -122,27 +122,27 @@ IMPORTANT:
 
     // Process a file and extract financial data
     async processFile(file) {
-        Utils.log('info', 'Starting file processing', { 
-            fileName: file.name, 
+        Utils.log('info', 'Starting file processing', {
+            fileName: file.name,
             fileType: file.type,
-            fileSize: file.size 
+            fileSize: file.size
         });
 
         try {
             // Step 1: Extract text from file
             const extractedText = await this.extractTextFromFile(file);
-            
+
             if (!extractedText || extractedText.trim().length === 0) {
                 throw new Error('No text could be extracted from the file');
             }
 
-            Utils.log('info', 'Text extracted successfully', { 
-                textLength: extractedText.length 
+            Utils.log('info', 'Text extracted successfully', {
+                textLength: extractedText.length
             });
 
             // Step 2: Process with AI if configured, otherwise use fallback parsing
             let aiResult;
-            
+
             if (this.isConfigured() && this.proxyAvailable) {
                 Utils.log('info', 'Using Claude API via proxy for processing');
                 aiResult = await this.processWithProxy(extractedText);
@@ -150,12 +150,12 @@ IMPORTANT:
                 Utils.log('info', 'Using expense365 parser (no API/proxy available)');
                 aiResult = this.parseExpense365Format(extractedText);
             }
-            
+
             // Step 3: Validate and format results
             const validatedTransactions = this.validateExtractedData(aiResult);
 
-            Utils.log('info', 'Processing complete', { 
-                transactionsFound: validatedTransactions.length 
+            Utils.log('info', 'Processing complete', {
+                transactionsFound: validatedTransactions.length
             });
 
             return {
@@ -179,43 +179,43 @@ IMPORTANT:
     // IMPROVED: Parse expense365 format specifically
     parseExpense365Format(text) {
         Utils.log('info', 'Parsing expense365 format...');
-        
+
         const transactions = [];
         const lines = text.split('\n');
-        
+
         let currentDate = null;
         let balanceCarriedForward = null;
-        
+
         // Find balance carried forward
         const balanceMatch = text.match(/Balance Bfwd\s*:\s*(-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
         if (balanceMatch) {
             balanceCarriedForward = parseFloat(balanceMatch[1].replace(/,/g, ''));
             Utils.log('info', 'Found balance carried forward:', balanceCarriedForward);
         }
-        
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
-            
+
             // Skip header lines
-            if (line.includes('Statement at') || line.includes('Hiking Club') || 
+            if (line.includes('Statement at') || line.includes('Hiking Club') ||
                 line.includes('Description') || line.includes('Cash In') ||
                 line.includes('Cost Centre') || line.includes('Page')) {
                 continue;
             }
-            
+
             // Try to parse as transaction line
             const transaction = this.parseExpense365TransactionLine(line);
             if (transaction) {
                 transactions.push(transaction);
             }
         }
-        
+
         Utils.log('info', 'expense365 parsing complete', {
             linesProcessed: lines.length,
             transactionsFound: transactions.length
         });
-        
+
         return {
             transactions,
             summary: {
@@ -232,27 +232,27 @@ IMPORTANT:
     parseExpense365TransactionLine(line) {
         // expense365 format: DD/MM/YYYY Description Amount
         // Sometimes amounts appear in separate "Cash In" and "Cash Out" columns
-        
+
         // Pattern for date at start of line
         const datePattern = /^(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+)/;
         const dateMatch = line.match(datePattern);
-        
+
         if (!dateMatch) {
             return null; // Not a transaction line
         }
-        
+
         const [, dateStr, restOfLine] = dateMatch;
-        
+
         // Extract amount(s) from the line
         const amounts = this.extractAmountsFromLine(restOfLine);
-        
+
         if (amounts.length === 0) {
             return null; // No valid amounts found
         }
-        
+
         // Get description (everything except the amount at the end)
         let description = restOfLine;
-        
+
         // Remove amounts from description
         amounts.forEach(amount => {
             const amountStr = amount.original;
@@ -261,24 +261,24 @@ IMPORTANT:
                 description = description.substring(0, lastIndex);
             }
         });
-        
+
         description = description.trim();
-        
+
         if (!description) {
             return null; // No description
         }
-        
+
         // Use the last/largest amount as the transaction amount
         const mainAmount = amounts[amounts.length - 1];
-        
+
         // Determine if this is income or expense based on context
         const isIncome = this.determineTransactionType(description, mainAmount.value);
         const finalAmount = isIncome ? Math.abs(mainAmount.value) : -Math.abs(mainAmount.value);
-        
+
         // Categorize the transaction
         const category = this.categorizeTransaction(description);
         const event = this.determineEvent(description);
-        
+
         return {
             date: this.normalizeDate(dateStr),
             description: this.cleanDescription(description),
@@ -297,12 +297,12 @@ IMPORTANT:
         // Pattern for amounts: optional minus, digits with optional commas, optional decimal
         const amountPattern = /(-?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g;
         const amounts = [];
-        
+
         let match;
         while ((match = amountPattern.exec(text)) !== null) {
             const originalStr = match[1];
             const value = parseFloat(originalStr.replace(/,/g, ''));
-            
+
             // Only consider significant amounts (> £1)
             if (!isNaN(value) && Math.abs(value) >= 1) {
                 amounts.push({
@@ -311,41 +311,41 @@ IMPORTANT:
                 });
             }
         }
-        
+
         return amounts;
     }
 
     // Determine if transaction is income or expense
     determineTransactionType(description, amount) {
         const desc = description.toLowerCase();
-        
+
         // Income indicators
         const incomeKeywords = [
             'membership', 'ticket', 'registration', 'grant', 'funding', 'refund',
             'fpr ref', 'bgc ref', 'payment', 'deposit', 'collection'
         ];
-        
+
         // Expense indicators  
         const expenseKeywords = [
             'hire', 'fuel', 'diesel', 'petrol', 'food', 'accommodation', 'hotel', 'hostel',
             'insurance', 'parking', 'toll', 'uber', 'taxi', 'equipment', 'training',
             'website', 'printing', 'coach', 'van', 'minibus'
         ];
-        
+
         // Check for income keywords
         for (const keyword of incomeKeywords) {
             if (desc.includes(keyword)) {
                 return true;
             }
         }
-        
+
         // Check for expense keywords
         for (const keyword of expenseKeywords) {
             if (desc.includes(keyword)) {
                 return false;
             }
         }
-        
+
         // If amount is positive and no clear indicators, assume income
         // If amount is negative, assume expense
         return amount > 0;
@@ -354,7 +354,7 @@ IMPORTANT:
     // Categorize transaction based on description
     categorizeTransaction(description) {
         const desc = description.toLowerCase();
-        
+
         // Category mapping based on UMHC's real transactions
         const categoryMap = {
             'Event Registration': ['ticket', 'registration', 'member ticket', 'non member', 'freshers', 'leader ticket'],
@@ -371,7 +371,7 @@ IMPORTANT:
             'Penalties & Fines': ['fine', 'penalty', 'traffic', 'toll fine'],
             'External Memberships': ['bmc', 'mountaineering']
         };
-        
+
         // Find matching category
         for (const [category, keywords] of Object.entries(categoryMap)) {
             for (const keyword of keywords) {
@@ -380,14 +380,14 @@ IMPORTANT:
                 }
             }
         }
-        
+
         return 'Uncategorized';
     }
 
     // Determine event from description
     determineEvent(description) {
         const desc = description.toLowerCase();
-        
+
         // Event patterns based on UMHC's actual events
         const eventMap = {
             'Welsh 3000s 2025': ['welsh 3000s', 'w3k', 'w3s'],
@@ -412,7 +412,7 @@ IMPORTANT:
             'Social Events': ['social', 'party', 'bowling', 'ninja'],
             'Annual Dinner': ['annual dinner']
         };
-        
+
         // Find matching event
         for (const [event, keywords] of Object.entries(eventMap)) {
             for (const keyword of keywords) {
@@ -421,7 +421,7 @@ IMPORTANT:
                 }
             }
         }
-        
+
         return 'General';
     }
 
@@ -434,14 +434,14 @@ IMPORTANT:
             /FPR\s+ref\s+([^\s]+)/i, // "FPR ref" pattern
             /BGC\s+ref\s+([^\s]+)/i, // "BGC ref" pattern
         ];
-        
+
         for (const pattern of refPatterns) {
             const match = description.match(pattern);
             if (match) {
                 return match[1];
             }
         }
-        
+
         return '';
     }
 
@@ -467,8 +467,8 @@ IMPORTANT:
     async extractTextFromPDF(file) {
         return new Promise((resolve, reject) => {
             const fileReader = new FileReader();
-            
-            fileReader.onload = async function() {
+
+            fileReader.onload = async function () {
                 try {
                     // Load PDF.js library dynamically if not already loaded
                     if (typeof pdfjsLib === 'undefined') {
@@ -476,19 +476,19 @@ IMPORTANT:
                     }
 
                     const typedArray = new Uint8Array(this.result);
-                    const pdf = await pdfjsLib.getDocument({data: typedArray}).promise;
-                    
+                    const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+
                     let fullText = '';
-                    
+
                     // Extract text from each page
                     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
                         const page = await pdf.getPage(pageNumber);
                         const textContent = await page.getTextContent();
-                        
+
                         const pageText = textContent.items
                             .map(item => item.str)
                             .join(' ');
-                        
+
                         fullText += pageText + '\n';
                     }
 
@@ -498,7 +498,7 @@ IMPORTANT:
                     });
 
                     resolve(fullText.trim());
-                    
+
                 } catch (error) {
                     reject(new Error(`PDF processing error: ${error.message}`));
                 }
@@ -516,15 +516,15 @@ IMPORTANT:
     async extractTextFromImage(file) {
         return new Promise((resolve, reject) => {
             const fileReader = new FileReader();
-            
-            fileReader.onload = async function() {
+
+            fileReader.onload = async function () {
                 try {
                     // Simulate OCR processing delay
                     await new Promise(resolve => setTimeout(resolve, 3000));
-                    
+
                     // In production, this would use Tesseract.js or cloud OCR
                     Utils.log('info', 'OCR processing complete (simulated)');
-                    
+
                     // Return sample OCR result for now
                     const simulatedOCRText = `
 Statement at 05/07/2025
@@ -533,9 +533,9 @@ Hiking Club UMSU01
 18/04/2025 Hostel Booking - Canolfan Corris 1400.00
 15/04/2025 Transport - Minibus Hire 320.50
                     `;
-                    
+
                     resolve(simulatedOCRText.trim());
-                    
+
                 } catch (error) {
                     reject(new Error(`OCR processing error: ${error.message}`));
                 }
@@ -549,44 +549,47 @@ Hiking Club UMSU01
         });
     }
 
-    // ENHANCED: Process extracted text with Claude AI (when API key is available)
-    async processWithAI(extractedText) {
-        if (!this.isConfigured()) {
+    // ENHANCED: Process extracted text with Claude AI (using proxy server)
+    async processWithAI(extractedText, apiKey, authToken) {
+        if (!apiKey) {
             throw new Error('API key not configured. Please set your Claude API key first.');
         }
 
+        if (!authToken) {
+            throw new Error('Authentication token required for API processing');
+        }
+
         const prompt = this.buildExtractionPrompt(extractedText);
-        
+
         try {
-            const response = await fetch(this.apiEndpoint, {
+            // Use the proxy server instead of calling Claude directly
+            const response = await fetch('https://umhc-auth-server.vercel.app/api/claude-extract', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': this.apiKey,
-                    'anthropic-version': '2023-06-01'
+                    'Authorization': `Bearer ${authToken}`
                 },
                 body: JSON.stringify({
+                    prompt: prompt,
                     model: this.model,
-                    max_tokens: this.maxTokens,
-                    messages: [
-                        {
-                            role: 'user',
-                            content: prompt
-                        }
-                    ]
+                    maxTokens: this.maxTokens,
+                    apiKey: apiKey
                 })
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Claude API error (${response.status}): ${errorText}`);
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                throw new Error(errorData.error || `API request failed: ${response.status}`);
             }
 
             const result = await response.json();
-            const aiResponse = result.content[0].text;
 
-            Utils.log('info', 'Claude API response received');
-            return this.parseAIResponse(aiResponse);
+            if (result.success && result.content) {
+                Utils.log('info', 'Claude API response received via proxy');
+                return this.parseAIResponse(result.content);
+            } else {
+                throw new Error('Invalid response from Claude API proxy');
+            }
 
         } catch (error) {
             Utils.log('error', 'Claude API request failed', error);
@@ -637,21 +640,21 @@ Return JSON with this structure:
     parseAIResponse(aiResponse) {
         try {
             let cleanResponse = aiResponse.trim();
-            
+
             // Remove markdown code blocks if present
             const jsonMatch = cleanResponse.match(/```(?:json)?\n?(.*?)\n?```/s);
             if (jsonMatch) {
                 cleanResponse = jsonMatch[1];
             }
-            
+
             // Parse JSON
             const parsed = JSON.parse(cleanResponse);
-            
+
             // Validate structure
             if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
                 throw new Error('Invalid response format: missing transactions array');
             }
-            
+
             return parsed;
         } catch (error) {
             Utils.log('error', 'Failed to parse AI response', error);
@@ -690,8 +693,8 @@ Return JSON with this structure:
                 }
 
                 // Validate category
-                const category = allCategories.includes(transaction.category) 
-                    ? transaction.category 
+                const category = allCategories.includes(transaction.category)
+                    ? transaction.category
                     : 'Uncategorized';
 
                 const validTransaction = {
@@ -723,13 +726,13 @@ Return JSON with this structure:
         if (!datePattern.test(dateStr)) {
             return false;
         }
-        
+
         const [day, month, year] = dateStr.split('/').map(Number);
         const date = new Date(year, month - 1, day);
-        
-        return date.getFullYear() === year && 
-               date.getMonth() === month - 1 && 
-               date.getDate() === day;
+
+        return date.getFullYear() === year &&
+            date.getMonth() === month - 1 &&
+            date.getDate() === day;
     }
 
     // Utility methods
@@ -737,15 +740,15 @@ Return JSON with this structure:
         try {
             const parts = dateStr.split('/');
             if (parts.length !== 3) return dateStr;
-            
+
             let [day, month, year] = parts;
             day = day.padStart(2, '0');
             month = month.padStart(2, '0');
-            
+
             if (year.length === 2) {
                 year = year > 50 ? '19' + year : '20' + year;
             }
-            
+
             return `${day}/${month}/${year}`;
         } catch (error) {
             return dateStr;
