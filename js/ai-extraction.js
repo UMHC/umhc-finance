@@ -602,53 +602,62 @@ Hiking Club UMSU01
 
     // Build the prompt for AI extraction
     buildExtractionPrompt(extractedText) {
-        return `You are a financial data extraction specialist for the University of Manchester Hiking Club (UMHC). 
+        return `You are a financial data extraction API. You MUST respond with ONLY valid JSON. No other text.
 
-Extract ALL transactions from this expense365 statement and format as JSON.
+CRITICAL: Your ENTIRE response must be a single valid JSON object. Do not include any explanatory text, markdown formatting, or conversation.
 
-KEY PATTERNS TO RECOGNIZE:
-- Lines starting with DD/MM/YYYY are transaction lines
-- Positive amounts or "Cash In" column = Income
-- Negative amounts or "Cash Out" column = Expenses
-- FPR ref/BGC ref usually = Income from member payments
-- Hire/Fuel/Accommodation usually = Expenses
+Extract ALL transactions from this expense365 statement.
 
 CATEGORIES: ${this.getAllCategories().join(', ')}
 
-TEXT TO PROCESS:
+INPUT TEXT:
 ${extractedText}
 
-Return JSON with this structure:
+OUTPUT FORMAT (respond with ONLY this JSON structure):
 {
   "transactions": [
     {
       "date": "DD/MM/YYYY",
-      "description": "Description",
-      "amount": 123.45,
-      "type": "Income|Expense", 
-      "category": "Category",
-      "event": "Event name",
-      "confidence": 0.95
+      "description": "string",
+      "amount": number,
+      "type": "Income|Expense",
+      "category": "string",
+      "event": "string",
+      "confidence": number
     }
   ],
   "summary": {
-    "totalTransactions": 150,
-    "totalIncome": 50000.00,
-    "totalExpenses": 45000.00
+    "totalTransactions": number,
+    "totalIncome": number,
+    "totalExpenses": number,
+    "averageConfidence": number
   }
-}`;
+}
+
+REMEMBER: Output ONLY valid JSON. No text before or after. No markdown. Just the JSON object.`;
     }
+
 
     // Parse AI response (handles both API and manual responses)
     parseAIResponse(aiResponse) {
         try {
             let cleanResponse = aiResponse.trim();
 
-            // Remove markdown code blocks if present
-            const jsonMatch = cleanResponse.match(/```(?:json)?\n?(.*?)\n?```/s);
-            if (jsonMatch) {
-                cleanResponse = jsonMatch[1];
+            // Remove any non-JSON content before the first {
+            const jsonStart = cleanResponse.indexOf('{');
+            if (jsonStart > 0) {
+                console.warn('AI response contained text before JSON, cleaning...');
+                cleanResponse = cleanResponse.substring(jsonStart);
             }
+
+            // Remove any non-JSON content after the last }
+            const jsonEnd = cleanResponse.lastIndexOf('}');
+            if (jsonEnd < cleanResponse.length - 1) {
+                cleanResponse = cleanResponse.substring(0, jsonEnd + 1);
+            }
+
+            // Remove markdown code blocks if present
+            cleanResponse = cleanResponse.replace(/```(?:json)?\n?/g, '');
 
             // Parse JSON
             const parsed = JSON.parse(cleanResponse);
@@ -660,7 +669,10 @@ Return JSON with this structure:
 
             return parsed;
         } catch (error) {
-            Utils.log('error', 'Failed to parse AI response', error);
+            Utils.log('error', 'Failed to parse AI response', {
+                error: error.message,
+                response: aiResponse.substring(0, 200) + '...'
+            });
             throw new Error(`Invalid AI response format: ${error.message}`);
         }
     }
