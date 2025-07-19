@@ -8,7 +8,7 @@ class AIExtractor {
         // Alternative models:
         // this.model = 'claude-3-opus-20240229';
         // this.model = 'claude-3-haiku-20240307';
-        this.maxTokens = 4000;
+        this.maxTokens = 8000;
         this.confidenceThreshold = 0.7;
 
         Utils.log('info', 'AIExtractor initialized');
@@ -604,11 +604,23 @@ Hiking Club UMSU01
     buildExtractionPrompt(extractedText) {
         return `You are a financial data extraction API. You MUST respond with ONLY valid JSON. No other text.
 
-CRITICAL: Your ENTIRE response must be a single valid JSON object. Do not include any explanatory text, markdown formatting, or conversation.
+CRITICAL REQUIREMENTS:
+1. Your ENTIRE response must be a single valid JSON object
+2. Extract EVERY SINGLE transaction you find - do not limit or summarize
+3. Include ALL transactions, even if there are hundreds
+4. Calculate realistic confidence scores based on data clarity (0.0-1.0)
 
-Extract ALL transactions from this expense365 statement.
+Extract ALL transactions from this expense365 statement. Each line with a date is a transaction.
 
 CATEGORIES: ${this.getAllCategories().join(', ')}
+
+CONFIDENCE SCORING RULES:
+- 1.0 = Perfect match, all fields clearly identified
+- 0.9 = Very clear transaction, minor ambiguity in one field
+- 0.8 = Clear transaction, some interpretation needed
+- 0.7 = Mostly clear, significant interpretation in 1-2 fields
+- 0.6 = Readable but requires guesswork
+- 0.5 or below = Very uncertain
 
 INPUT TEXT:
 ${extractedText}
@@ -623,7 +635,9 @@ OUTPUT FORMAT (respond with ONLY this JSON structure):
       "type": "Income|Expense",
       "category": "string",
       "event": "string",
-      "confidence": number
+      "confidence": number,
+      "reference": "string",
+      "notes": "string"
     }
   ],
   "summary": {
@@ -634,7 +648,11 @@ OUTPUT FORMAT (respond with ONLY this JSON structure):
   }
 }
 
-REMEMBER: Output ONLY valid JSON. No text before or after. No markdown. Just the JSON object.`;
+IMPORTANT: 
+- Extract EVERY transaction line - if there are 200 transactions, include all 200
+- Do NOT limit to a sample or subset
+- Each date line is a separate transaction
+- Output ONLY valid JSON`;
     }
 
 
@@ -677,7 +695,6 @@ REMEMBER: Output ONLY valid JSON. No text before or after. No markdown. Just the
         }
     }
 
-    // Validate extracted data
     validateExtractedData(aiResult) {
         if (!aiResult || !aiResult.transactions) {
             return [];
@@ -685,6 +702,11 @@ REMEMBER: Output ONLY valid JSON. No text before or after. No markdown. Just the
 
         const validTransactions = [];
         const allCategories = this.getAllCategories();
+
+        // Check if suspiciously few transactions
+        if (aiResult.transactions.length < 10) {
+            console.warn('WARNING: Only ' + aiResult.transactions.length + ' transactions extracted. The document may contain more.');
+        }
 
         for (const transaction of aiResult.transactions) {
             try {
@@ -725,6 +747,12 @@ REMEMBER: Output ONLY valid JSON. No text before or after. No markdown. Just the
                 };
 
                 validTransactions.push(validTransaction);
+
+                console.log('Validation complete:', {
+                    input: aiResult.transactions.length,
+                    valid: validTransactions.length,
+                    rejected: aiResult.transactions.length - validTransactions.length
+                });
 
             } catch (error) {
                 Utils.log('warn', 'Error validating transaction', { transaction, error });

@@ -923,7 +923,6 @@
             }
         }
 
-        // UPDATED: Process file with API (flexible proxy detection)
         async function processFileWithAPI(file) {
             if (!authToken) {
                 alert('Authentication required for API processing');
@@ -945,11 +944,15 @@
 
                 // Step 2: Extract text
                 updateProcessingStep('extract', 'active', 'Extracting text from document...');
-                extractedText = await aiExtractor.extractTextFromFile(file);
+                const extractedText = await aiExtractor.extractTextFromFile(file);
                 updateProcessingStep('extract', 'complete', 'Text extracted successfully');
 
+                // Log extracted text length to verify we got all content
+                console.log('Extracted text length:', extractedText.length);
+                console.log('Approximate lines:', extractedText.split('\n').length);
+
                 // Step 3: AI processing
-                updateProcessingStep('ai', 'active', 'Processing with Claude API...');
+                updateProcessingStep('ai', 'active', 'Processing with Claude AI...');
 
                 const result = await aiExtractor.processWithAI(extractedText, apiKey, authToken);
                 updateProcessingStep('ai', 'complete', 'AI processing complete');
@@ -959,28 +962,22 @@
                 const validatedTransactions = aiExtractor.validateExtractedData(result);
                 updateProcessingStep('review', 'complete', 'Ready for review');
 
+                console.log('Transactions extracted:', validatedTransactions.length);
+
                 // Display results
                 displayExtractedData(validatedTransactions);
 
             } catch (error) {
                 console.error('API file processing error:', error);
+                updateProcessingStep('ai', 'error', `Error: ${error.message}`);
 
-                if (error.message.includes('proxy') || error.message.includes('CORS')) {
-                    updateProcessingStep('ai', 'error', 'API proxy not available - switching to manual mode');
-                    alert('⚠️ API processing requires a proxy server for browser security.\n\nSwitching to manual processing mode...');
-                    enableManualMode();
-                    await processFileManually(file);
-                } else {
-                    updateProcessingStep('ai', 'error', `Error: ${error.message}`);
+                // Remove manual processing fallback - just show error
+                setTimeout(() => {
+                    alert(`❌ Processing failed: ${error.message}\n\nPlease check:\n1. Your API key is valid\n2. The file contains transaction data\n3. Your internet connection is stable\n\nIf the problem persists, try:\n- Using a smaller file\n- Checking your API key limits\n- Contacting support`);
 
-                    // Offer manual processing as fallback
-                    setTimeout(() => {
-                        if (confirm('API processing failed. Would you like to try manual processing instead?')) {
-                            enableManualMode();
-                            processFileManually(file);
-                        }
-                    }, 2000);
-                }
+                    // Hide processing status after error
+                    document.getElementById('processingStatus').style.display = 'none';
+                }, 1000);
             }
         }
 
