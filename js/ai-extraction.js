@@ -4,7 +4,10 @@
 class AIExtractor {
     constructor() {
         this.apiKey = null;
-        this.model = 'claude-3-sonnet-20240229';
+        this.model = 'claude-3-5-sonnet-20241022'; // Latest Claude 3.5 Sonnet
+        // Alternative models:
+        // this.model = 'claude-3-opus-20240229';
+        // this.model = 'claude-3-haiku-20240307';
         this.maxTokens = 4000;
         this.confidenceThreshold = 0.7;
 
