@@ -409,19 +409,40 @@
                 </div>
 
                 <!-- Alternative: Use Claude.ai Directly -->
+                <!-- Keep and improve this section -->
                 <div id="noApiInstructions" class="api-config-section"
                     style="background: #f8f9fa; border-left: 4px solid #17a2b8;">
                     <h3>💡 Alternative: Use Claude.ai Directly (Free)</h3>
-                    <p>If you don't want to set up an API key, you can process documents manually:</p>
+                    <p>If you don't have an API key, you can still extract transaction data:</p>
                     <ol style="margin: 1rem 0; padding-left: 1.5rem;">
-                        <li>Upload your PDF below to extract the text</li>
-                        <li>Copy the extracted text</li>
-                        <li>Visit <a href="https://claude.ai" target="_blank">claude.ai</a> and paste the text</li>
-                        <li>Ask Claude to extract transactions in JSON format</li>
-                        <li>Copy the results back to your spreadsheet</li>
+                        <li>Go to <a href="https://claude.ai" target="_blank">claude.ai</a> (free account required)</li>
+                        <li>Upload your PDF or paste the text</li>
+                        <li>Copy and paste this prompt:</li>
                     </ol>
+
+                    <div style="background: white; padding: 1rem; border-radius: 5px; margin: 1rem 0;">
+                        <code style="white-space: pre-wrap; font-size: 0.9rem;">Extract all transactions from this expense365 statement and format as CSV with columns: Date,Description,Amount,Type,Category,Event,Reference
+
+Categories to use: Event Registration, Membership, Transport, Accommodation, Equipment, Training, Food & Catering, Insurance, Administration, Grants & Funding, Social Events, External Memberships
+
+For each transaction line (starts with date):
+- Amount: positive = Income, negative = Expense
+- Type: "Income" or "Expense"
+- Event: Extract from description or use "General"
+- Reference: Extract any reference numbers
+
+Output ONLY the CSV data, no explanations.</code>
+                    </div>
+
+                    <button class="btn secondary"
+                        onclick="navigator.clipboard.writeText(this.previousElementSibling.querySelector('code').textContent).then(() => alert('Prompt copied!'))">📋
+                        Copy Prompt</button>
                     <button class="btn secondary" onclick="window.open('https://claude.ai', '_blank')">🌐 Open
                         claude.ai</button>
+
+                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                        Then copy the CSV output and use the Manual Entry tab to add the transactions.
+                    </p>
                 </div>
 
                 <!-- Upload Area -->
@@ -580,7 +601,6 @@
         let authToken = null;
         let userInfo = null;
         let dataManager = null;
-        let extractedText = null; // NEW: Store extracted text for manual processing
 
         // Initialize admin dashboard
         document.addEventListener('DOMContentLoaded', async function () {
@@ -722,104 +742,9 @@
             }
         }
 
-        // NEW: Enable manual mode
-        function enableManualMode() {
-            // Switch to manual method
-            document.getElementById('manualMethod').classList.add('active');
-            document.getElementById('apiMethod').classList.remove('active');
-
-            // Show manual processing section
-            document.getElementById('manualProcessing').style.display = 'block';
-
-            console.log('Manual processing mode enabled');
-        }
-
-        // NEW: Enable API mode
-        function enableApiMode() {
-            // Switch to API method
-            document.getElementById('apiMethod').classList.add('active');
-            document.getElementById('manualMethod').classList.remove('active');
-
-            // Hide manual processing section
-            document.getElementById('manualProcessing').style.display = 'none';
-
-            console.log('API processing mode enabled');
-        }
-
-        // NEW: Generate manual prompt
-        function generateManualPrompt() {
-            if (!extractedText || extractedText.trim().length === 0) {
-                alert('Please upload and process a document first to extract text.');
-                return;
-            }
-
-            const prompt = aiExtractor.generateManualPrompt(extractedText);
-
-            // Display the prompt
-            document.getElementById('manualPrompt').value = prompt;
-            document.getElementById('promptArea').style.display = 'block';
-            document.getElementById('resultArea').style.display = 'block';
-        }
-
-        // NEW: Copy prompt to clipboard
-        async function copyPromptToClipboard() {
-            const promptText = document.getElementById('manualPrompt').value;
-
-            try {
-                await navigator.clipboard.writeText(promptText);
-                alert('✅ Prompt copied to clipboard! Now paste it into claude.ai');
-            } catch (error) {
-                // Fallback for older browsers
-                document.getElementById('manualPrompt').select();
-                document.execCommand('copy');
-                alert('✅ Prompt copied to clipboard! Now paste it into claude.ai');
-            }
-        }
-
         // NEW: Open claude.ai in new tab
         function openClaudeAI() {
             window.open('https://claude.ai', '_blank');
-        }
-
-        // NEW: Process manual result
-        function processManualResult() {
-            const resultText = document.getElementById('manualResult').value.trim();
-
-            if (!resultText) {
-                alert('Please paste the JSON response from claude.ai first.');
-                return;
-            }
-
-            try {
-                // Parse the JSON response
-                const aiResult = JSON.parse(resultText);
-
-                // Validate and process the transactions
-                const validatedTransactions = aiExtractor.validateExtractedData(aiResult);
-
-                if (validatedTransactions.length === 0) {
-                    alert('No valid transactions found in the response. Please check the format.');
-                    return;
-                }
-
-                // Display the extracted data for review
-                displayExtractedData(validatedTransactions);
-
-                // Hide manual processing section
-                document.getElementById('manualProcessing').style.display = 'none';
-
-                alert(`✅ Successfully processed ${validatedTransactions.length} transactions from manual input!`);
-
-            } catch (error) {
-                alert('❌ Error processing manual result: ' + error.message + '\n\nPlease make sure you copied the complete JSON response from claude.ai');
-            }
-        }
-
-        // NEW: Clear manual result
-        function clearManualResult() {
-            document.getElementById('manualResult').value = '';
-            document.getElementById('promptArea').style.display = 'none';
-            document.getElementById('resultArea').style.display = 'none';
         }
 
         // Check if user is authenticated
@@ -908,19 +833,19 @@
         async function processFiles(files) {
             if (files.length === 0) return;
 
-            const file = files[0]; // Process first file
+            const file = files[0];
 
-            // Validate file
             if (!validateFile(file)) return;
 
-            // Check if API key is configured
             const apiKey = document.getElementById('apiKeyInput').value.trim();
 
-            if (apiKey && apiKey.startsWith('sk-ant-api')) {
-                await processFileWithAPI(file);
-            } else {
-                await processFileManually(file);
+            if (!apiKey || !apiKey.startsWith('sk-ant-api')) {
+                alert('❌ Please configure your Claude API key first.\n\nEnter your API key in the configuration section above.');
+                return;
             }
+
+            // Always use API processing
+            await processFileWithAPI(file);
         }
 
         async function processFileWithAPI(file) {
@@ -971,84 +896,79 @@
                 console.error('API file processing error:', error);
                 updateProcessingStep('ai', 'error', `Error: ${error.message}`);
 
-                // Remove manual processing fallback - just show error
+                // Just show error, no manual fallback
                 setTimeout(() => {
-                    alert(`❌ Processing failed: ${error.message}\n\nPlease check:\n1. Your API key is valid\n2. The file contains transaction data\n3. Your internet connection is stable\n\nIf the problem persists, try:\n- Using a smaller file\n- Checking your API key limits\n- Contacting support`);
+                    alert(`❌ Processing failed: ${error.message}\n\nPlease check:\n1. Your API key is valid\n2. The file contains transaction data\n3. Your internet connection is stable`);
 
-                    // Hide processing status after error
+                    // Hide processing status
                     document.getElementById('processingStatus').style.display = 'none';
                 }, 1000);
             }
-        }
 
-        // Validate uploaded file
-        function validateFile(file) {
-            const maxSize = 10 * 1024 * 1024; // 10MB
-            const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+            // Validate uploaded file
+            function validateFile(file) {
+                const maxSize = 10 * 1024 * 1024; // 10MB
+                const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
 
-            if (file.size > maxSize) {
-                alert('File too large. Maximum size is 10MB.');
-                return false;
+                if (file.size > maxSize) {
+                    alert('File too large. Maximum size is 10MB.');
+                    return false;
+                }
+
+                if (!allowedTypes.includes(file.type)) {
+                    alert('Unsupported file type. Please upload PDF, PNG, or JPG files.');
+                    return false;
+                }
+
+                return true;
             }
 
-            if (!allowedTypes.includes(file.type)) {
-                alert('Unsupported file type. Please upload PDF, PNG, or JPG files.');
-                return false;
+            // Show processing status
+            function showProcessingStatus() {
+                const statusDiv = document.getElementById('processingStatus');
+                statusDiv.style.display = 'block';
+
+                const stepsDiv = document.getElementById('processingSteps');
+                stepsDiv.innerHTML = `
+        <div class="processing-step active" id="step-upload">
+            <div class="step-icon">📤</div>
+            <div>Uploading file...</div>
+        </div>
+        <div class="processing-step" id="step-extract">
+            <div class="step-icon">📄</div>
+            <div>Extracting text...</div>
+        </div>
+        <div class="processing-step" id="step-ai">
+            <div class="step-icon">🤖</div>
+            <div>AI processing...</div>
+        </div>
+        <div class="processing-step" id="step-review">
+            <div class="step-icon">👁️</div>
+            <div>Ready for review</div>
+        </div>
+    `;
             }
 
-            return true;
-        }
-
-        // Show processing status
-        function showProcessingStatus() {
-            const statusDiv = document.getElementById('processingStatus');
-            statusDiv.style.display = 'block';
-
-            const stepsDiv = document.getElementById('processingSteps');
-            stepsDiv.innerHTML = `
-                <div class="processing-step active" id="step-upload">
-                    <div class="step-icon">📤</div>
-                    <div>Uploading file...</div>
-                </div>
-                <div class="processing-step" id="step-extract">
-                    <div class="step-icon">📄</div>
-                    <div>Extracting text...</div>
-                </div>
-                <div class="processing-step" id="step-ai">
-                    <div class="step-icon">🤖</div>
-                    <div>AI processing...</div>
-                </div>
-                <div class="processing-step" id="step-manual">
-                    <div class="step-icon">✋</div>
-                    <div>Manual processing...</div>
-                </div>
-                <div class="processing-step" id="step-review">
-                    <div class="step-icon">👁️</div>
-                    <div>Ready for review</div>
-                </div>
-            `;
-        }
-
-        // Update processing step status
-        function updateProcessingStep(stepId, status, message) {
-            const stepElement = document.getElementById(`step-${stepId}`);
-            if (stepElement) {
-                stepElement.className = `processing-step ${status}`;
-                stepElement.querySelector('div:last-child').textContent = message;
+            // Update processing step status
+            function updateProcessingStep(stepId, status, message) {
+                const stepElement = document.getElementById(`step-${stepId}`);
+                if (stepElement) {
+                    stepElement.className = `processing-step ${status}`;
+                    stepElement.querySelector('div:last-child').textContent = message;
+                }
             }
-        }
 
-        // Display extracted data for review
-        function displayExtractedData(transactions) {
-            const dataDiv = document.getElementById('extractedData');
-            const transactionsDiv = document.getElementById('extractedTransactions');
+            // Display extracted data for review
+            function displayExtractedData(transactions) {
+                const dataDiv = document.getElementById('extractedData');
+                const transactionsDiv = document.getElementById('extractedTransactions');
 
-            let html = '';
-            transactions.forEach((transaction, index) => {
-                const confidenceClass = transaction.confidence > 0.9 ? 'confidence-high' :
-                    transaction.confidence > 0.7 ? 'confidence-medium' : 'confidence-low';
+                let html = '';
+                transactions.forEach((transaction, index) => {
+                    const confidenceClass = transaction.confidence > 0.9 ? 'confidence-high' :
+                        transaction.confidence > 0.7 ? 'confidence-medium' : 'confidence-low';
 
-                html += `
+                    html += `
                     <div class="transaction-review" style="border: 1px solid #e9ecef; padding: 1rem; margin: 1rem 0; border-radius: 8px;">
                         <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 1rem;">
                             <strong>Transaction ${index + 1}</strong>
@@ -1080,8 +1000,8 @@
                                 <label>Category</label>
                                 <select data-field="category" data-index="${index}">
                                     ${CONFIG.getAllCategories().map(cat =>
-                    `<option value="${cat}" ${cat === transaction.category ? 'selected' : ''}>${cat}</option>`
-                ).join('')}
+                        `<option value="${cat}" ${cat === transaction.category ? 'selected' : ''}>${cat}</option>`
+                    ).join('')}
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1091,153 +1011,123 @@
                         </div>
                     </div>
                 `;
-            });
+                });
 
-            html += `
+                html += `
                 <div class="action-buttons">
                     <button class="btn btn-success" onclick="saveAllTransactions()">💾 Save All Transactions</button>
                     <button class="btn secondary" onclick="hideExtractedData()">❌ Cancel</button>
                 </div>
             `;
 
-            transactionsDiv.innerHTML = html;
-            dataDiv.style.display = 'block';
-        }
-
-        // Save all extracted transactions
-        function saveAllTransactions() {
-            // In a real implementation, this would save to your data store
-            alert('Transactions saved successfully!');
-            hideExtractedData();
-            updateQuickStats();
-        }
-
-        // Hide extracted data
-        function hideExtractedData() {
-            document.getElementById('extractedData').style.display = 'none';
-            document.getElementById('processingStatus').style.display = 'none';
-            document.getElementById('manualProcessing').style.display = 'none';
-        }
-
-        // Populate form options
-        function populateFormOptions() {
-            const categorySelect = document.getElementById('transactionCategory');
-            CONFIG.getAllCategories().forEach(category => {
-                const option = document.createElement('option');
-                option.value = category;
-                option.textContent = category;
-                categorySelect.appendChild(option);
-            });
-        }
-
-        // Save manual transaction
-        function saveTransaction() {
-            const form = document.getElementById('transactionForm');
-            const formData = new FormData(form);
-
-            // Validate required fields
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                return;
+                transactionsDiv.innerHTML = html;
+                dataDiv.style.display = 'block';
             }
 
-            // In a real implementation, this would save to your data store
-            alert('Transaction saved successfully!');
-            clearForm();
-            updateQuickStats();
-        }
-
-        // Clear form
-        function clearForm() {
-            document.getElementById('transactionForm').reset();
-        }
-
-        // Suggest category based on description
-        function suggestCategory() {
-            const description = document.getElementById('transactionDescription').value;
-            const suggested = CONFIG.suggestCategory(description);
-
-            if (suggested) {
-                document.getElementById('transactionCategory').value = suggested;
-                UIComponents.showToast(`Suggested category: ${suggested}`, 'info');
-            } else {
-                UIComponents.showToast('No category suggestion available', 'info');
+            // Save all extracted transactions
+            function saveAllTransactions() {
+                // In a real implementation, this would save to your data store
+                alert('Transactions saved successfully!');
+                hideExtractedData();
+                updateQuickStats();
             }
-        }
 
-        // Update quick stats
-        function updateQuickStats() {
-            if (dataManager) {
-                const totals = dataManager.calculateTotals();
-                document.getElementById('totalTransactions').textContent = totals.count;
-                document.getElementById('currentBalance').textContent = Utils.formatCurrency(totals.balance);
-                document.getElementById('lastUpdated').textContent = 'Just now';
+            // Hide extracted data
+            function hideExtractedData() {
+                document.getElementById('extractedData').style.display = 'none';
+                document.getElementById('processingStatus').style.display = 'none';
+                document.getElementById('manualProcessing').style.display = 'none';
             }
-        }
 
-        // Data management functions
-        function importData() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.csv';
-            input.onchange = function (e) {
-                const file = e.target.files[0];
-                if (file) {
-                    // Process CSV import
-                    alert('CSV import functionality would be implemented here');
+            // Populate form options
+            function populateFormOptions() {
+                const categorySelect = document.getElementById('transactionCategory');
+                CONFIG.getAllCategories().forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    categorySelect.appendChild(option);
+                });
+            }
+
+            // Save manual transaction
+            function saveTransaction() {
+                const form = document.getElementById('transactionForm');
+                const formData = new FormData(form);
+
+                // Validate required fields
+                if (!form.checkValidity()) {
+                    form.reportValidity();
+                    return;
                 }
-            };
-            input.click();
-        }
 
-        function exportData(format) {
-            if (dataManager) {
-                dataManager.downloadExport(format);
-                UIComponents.showToast(`Data exported as ${format.toUpperCase()}`, 'success');
+                // In a real implementation, this would save to your data store
+                alert('Transaction saved successfully!');
+                clearForm();
+                updateQuickStats();
             }
-        }
 
-        function refreshData() {
-            location.reload();
-        }
-
-        // Logout function
-        function logout() {
-            if (confirm('Are you sure you want to logout?')) {
-                authToken = null;
-                userInfo = null;
-                window.location.href = 'admin-login.html';
+            // Clear form
+            function clearForm() {
+                document.getElementById('transactionForm').reset();
             }
-        }
 
-        // NEW: Process file manually
-        async function processFileManually(file) {
-            try {
-                // Extract text from file
-                showProcessingStatus();
-                updateProcessingStep('upload', 'complete', 'File uploaded successfully');
-                updateProcessingStep('extract', 'active', 'Extracting text from document...');
+            // Suggest category based on description
+            function suggestCategory() {
+                const description = document.getElementById('transactionDescription').value;
+                const suggested = CONFIG.suggestCategory(description);
 
-                extractedText = await aiExtractor.extractTextFromFile(file);
-                updateProcessingStep('extract', 'complete', 'Text extracted successfully');
-                updateProcessingStep('manual', 'complete', 'Ready for manual processing');
+                if (suggested) {
+                    document.getElementById('transactionCategory').value = suggested;
+                    UIComponents.showToast(`Suggested category: ${suggested}`, 'info');
+                } else {
+                    UIComponents.showToast('No category suggestion available', 'info');
+                }
+            }
 
-                // Enable the generate prompt button
-                document.getElementById('generatePromptBtn').disabled = false;
+            // Update quick stats
+            function updateQuickStats() {
+                if (dataManager) {
+                    const totals = dataManager.calculateTotals();
+                    document.getElementById('totalTransactions').textContent = totals.count;
+                    document.getElementById('currentBalance').textContent = Utils.formatCurrency(totals.balance);
+                    document.getElementById('lastUpdated').textContent = 'Just now';
+                }
+            }
 
-                // Show manual processing section
-                document.getElementById('manualProcessing').style.display = 'block';
+            // Data management functions
+            function importData() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.csv';
+                input.onchange = function (e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        // Process CSV import
+                        alert('CSV import functionality would be implemented here');
+                    }
+                };
+                input.click();
+            }
 
-                // Hide processing status after a delay
-                setTimeout(() => {
-                    document.getElementById('processingStatus').style.display = 'none';
-                }, 2000);
+            function exportData(format) {
+                if (dataManager) {
+                    dataManager.downloadExport(format);
+                    UIComponents.showToast(`Data exported as ${format.toUpperCase()}`, 'success');
+                }
+            }
 
-                alert('✅ Text extracted successfully! Now click "Generate Manual Prompt" to create the prompt for claude.ai');
+            function refreshData() {
+                location.reload();
+            }
 
-            } catch (error) {
-                console.error('Manual file processing error:', error);
-                updateProcessingStep('manual', 'error', `Error: ${error.message}`);
+            // Logout function
+            function logout() {
+                if (confirm('Are you sure you want to logout?')) {
+                    authToken = null;
+                    userInfo = null;
+                    window.location.href = 'admin-login.html';
+                }
             }
         }
     </script>
