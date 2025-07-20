@@ -14,6 +14,14 @@ class AIExtractor {
         Utils.log('info', 'AIExtractor initialized');
     }
 
+    setLastRawResponse(response) {
+        this.lastRawResponse = response;
+    }
+
+    getLastRawResponse() {
+        return this.lastRawResponse || 'No response captured yet';
+    }
+
     // Set API key
     setApiKey(apiKey) {
         if (!apiKey || typeof apiKey !== 'string') {
@@ -589,6 +597,8 @@ Hiking Club UMSU01
 
             if (result.success && result.content) {
                 Utils.log('info', 'Claude API response received via proxy');
+                // Store the raw response before parsing
+                this.setLastRawResponse(result.content);
                 return this.parseAIResponse(result.content);
             } else {
                 throw new Error('Invalid response from Claude API proxy');
@@ -658,6 +668,10 @@ IMPORTANT:
 
     // Parse AI response (handles both API and manual responses)
     parseAIResponse(aiResponse) {
+
+        // Store the raw response for debugging
+        this.setLastRawResponse(aiResponse);
+
         try {
             let cleanResponse = aiResponse.trim();
 

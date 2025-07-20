@@ -1,10 +1,4 @@
-<!-- Extracted Text Debug -->
-                <div id="extractedTextDebug" class="api-config-section" style="display: none; background: #e8f5e9; border-left: 4px solid #4caf50;">
-                    <h3>📄 Extracted Text from Document</h3>
-                    <p>This shows the text extracted from your PDF (first 2000 chars):</p>
-                    <pre id="extractedTextPreview" style="background: white; padding: 1rem; border-radius: 5px; overflow-x: auto; max-height: 300px; overflow-y: auto; font-size: 0.8rem; white-space: pre-wrap;"></pre>
-                    <button class="btn secondary" onclick="hideExtractedTextDebug()">Hide</button>
-                </div><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -645,11 +639,19 @@
         let userInfo = null;
         let dataManager = null;
         let extractedTransactions = [];
+        let debugMode = true; // For troubleshooting
 
         // Toggle debug mode
         function toggleDebugMode() {
-            // Debug mode is always on for now
-            alert('Debug mode is currently always enabled to help troubleshoot extraction issues.');
+            debugMode = !debugMode;
+            const status = debugMode ? 'enabled' : 'disabled';
+            alert(`Debug mode is now ${status}. When enabled, you'll see raw Claude API responses.`);
+            
+            // If turning off debug mode, hide any open debug panels
+            if (!debugMode) {
+                hideDebugPanel();
+                document.getElementById('extractedTextDebug').style.display = 'none';
+            }
         }
 
         // Initialize admin dashboard
@@ -1011,6 +1013,11 @@
             const debugPanel = document.getElementById('debugPanel');
             const rawResponseElement = document.getElementById('rawResponse');
             
+            if (!debugPanel || !rawResponseElement) {
+                console.error('Debug panel elements not found in DOM');
+                return;
+            }
+            
             if (typeof aiExtractor !== 'undefined' && aiExtractor.getLastRawResponse) {
                 const rawResponse = aiExtractor.getLastRawResponse();
                 rawResponseElement.textContent = rawResponse;
@@ -1033,6 +1040,9 @@
                 } catch (e) {
                     console.error('Could not count transactions in raw response:', e);
                 }
+            } else {
+                rawResponseElement.textContent = 'AI extractor not available or no response captured yet';
+                debugPanel.style.display = 'block';
             }
         }
 
@@ -1291,5 +1301,16 @@
             }
         }
     </script>
+
+    <!-- Debug Panel for Raw Claude Response -->
+    <div id="debugPanel" class="api-config-section" style="display: none; background: #fff3cd; border-left: 4px solid #ffc107;">
+        <h3>🐛 Debug: Raw Claude Response</h3>
+        <p>This shows the exact response from Claude API (useful for troubleshooting):</p>
+        <pre id="rawResponse" style="background: white; padding: 1rem; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto; font-size: 0.8rem; white-space: pre-wrap;"></pre>
+        <div class="action-buttons">
+            <button class="btn secondary" onclick="copyRawResponse()">📋 Copy Response</button>
+            <button class="btn secondary" onclick="hideDebugPanel()">Hide Debug</button>
+        </div>
+    </div>
 </body>
 </html>
