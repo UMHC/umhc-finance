@@ -920,7 +920,7 @@
                 
                 // Temporarily increase token limit for large documents
                 const originalMaxTokens = aiExtractor.maxTokens;
-                aiExtractor.maxTokens = Math.max(16000, possibleTransactions * 200); // Allow ~200 tokens per transaction
+                aiExtractor.maxTokens = 8000 // Don't go over Claude Sonnet max token count
                 
                 const result = await aiExtractor.processWithAI(extractedText, apiKey, authToken);
                 
