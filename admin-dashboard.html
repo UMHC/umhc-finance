@@ -207,6 +207,20 @@
             font-size: 1.5rem;
         }
 
+        /* Processing Method Indicator */
+        .processing-method {
+            background: #e7f3ff;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid #007bff;
+        }
+
+        .processing-method h4 {
+            margin: 0 0 0.5rem 0;
+            color: #0056b3;
+        }
+
         /* Data Management */
         .data-management {
             display: grid;
@@ -426,7 +440,7 @@
             <!-- AI Extraction Tab -->
             <section id="ai-extraction" class="tab-content active">
                 <h2>AI Document Processing</h2>
-                <p>Upload expense365 PDFs or screenshots for automatic data extraction using Claude AI.</p>
+                <p>Upload expense365 PDFs or images for automatic data extraction using Claude AI with vision capabilities.</p>
 
                 <!-- API Configuration Section -->
                 <div class="api-config-section">
@@ -455,6 +469,12 @@
                         <strong>Get an API key:</strong> Visit <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> and create an API key.
                         Cost: ~£0.01-0.05 per document.
                     </p>
+
+                    <div class="processing-method" id="processingMethodInfo">
+                        <h4>🎯 Processing Method</h4>
+                        <p><strong>Images (PNG/JPG):</strong> Analyzed directly by Claude Vision - higher accuracy for visual documents</p>
+                        <p><strong>PDFs:</strong> Text extracted first, then processed by Claude AI - best for text-heavy documents</p>
+                    </div>
                 </div>
 
                 <!-- Alternative Instructions -->
@@ -463,7 +483,7 @@
                     <p>If you don't have an API key, you can still extract transaction data:</p>
                     <ol style="margin: 1rem 0; padding-left: 1.5rem;">
                         <li>Go to <a href="https://claude.ai" target="_blank">claude.ai</a> (free account required)</li>
-                        <li>Upload your PDF or paste the text</li>
+                        <li>Upload your PDF or image directly to the chat</li>
                         <li>Copy and paste the prompt below</li>
                     </ol>
                     
@@ -473,14 +493,6 @@
                     
                     <button class="btn secondary" onclick="copyPrompt()">📋 Copy Prompt</button>
                     <button class="btn secondary" onclick="window.open('https://claude.ai', '_blank')">🌐 Open claude.ai</button>
-                </div>
-
-                <!-- Extracted Text Debug -->
-                <div id="extractedTextDebug" class="api-config-section" style="display: none; background: #e8f5e9; border-left: 4px solid #4caf50;">
-                    <h3>📄 Extracted Text from Document</h3>
-                    <p>This shows the text extracted from your PDF (first 2000 chars):</p>
-                    <pre id="extractedTextPreview" style="background: white; padding: 1rem; border-radius: 5px; overflow-x: auto; max-height: 300px; overflow-y: auto; font-size: 0.8rem; white-space: pre-wrap;"></pre>
-                    <button class="btn secondary" onclick="hideExtractedTextDebug()">Hide</button>
                 </div>
 
                 <!-- Debug Panel for Raw Claude Response -->
@@ -502,7 +514,7 @@
                      ondragleave="handleDragLeave(event)">
                     <div class="upload-icon">📄</div>
                     <div class="upload-text" id="uploadText">Drop files here or click to upload</div>
-                    <div class="upload-hint" id="uploadHint">Supports: PDF, PNG, JPG (max 10MB)</div>
+                    <div class="upload-hint" id="uploadHint">Supports: PDF, PNG, JPG (max 10MB) • Images processed with Claude Vision</div>
                     <input type="file" 
                            id="fileInput" 
                            class="file-input" 
@@ -526,18 +538,6 @@
                     <div id="extractedTransactions">
                         <!-- Extracted transactions will be displayed here -->
                     </div>
-                </div>
-
-                <!-- Chunking option for large documents -->
-                <div id="chunkingOption" class="api-config-section" style="display: none; background: #fff3cd; border-left: 4px solid #ffc107;">
-                    <h3>⚠️ Large Document Detected</h3>
-                    <p>This document appears to contain many transactions. If extraction fails or is incomplete, try processing in smaller chunks:</p>
-                    <ol style="margin: 1rem 0; padding-left: 1.5rem;">
-                        <li>Split your PDF into multiple smaller PDFs (e.g., by month or quarter)</li>
-                        <li>Process each smaller PDF separately</li>
-                        <li>Combine the results in the Manual Entry tab</li>
-                    </ol>
-                    <button class="btn secondary" onclick="hideChunkingOption()">Got it</button>
                 </div>
             </section>
 
@@ -666,10 +666,8 @@
             const status = debugMode ? 'enabled' : 'disabled';
             alert(`Debug mode is now ${status}. When enabled, you'll see raw Claude API responses.`);
             
-            // If turning off debug mode, hide any open debug panels
             if (!debugMode) {
                 hideDebugPanel();
-                document.getElementById('extractedTextDebug').style.display = 'none';
             }
         }
 
@@ -678,20 +676,11 @@
             console.log('🔧 Admin Dashboard Loading...');
             
             try {
-                // Check authentication
                 await checkAuthentication();
-                
-                // Initialize data manager
                 dataManager = new DataManager();
                 await dataManager.loadData();
-                
-                // Populate form options
                 populateFormOptions();
-                
-                // Update quick stats
                 updateQuickStats();
-                
-                // Initialize AI configuration
                 initializeAIConfiguration();
                 
                 console.log('✅ Admin Dashboard loaded successfully');
@@ -752,7 +741,7 @@
             
             if (apiKey && apiKey.startsWith('sk-ant-api')) {
                 statusElement.className = 'status-indicator configured';
-                statusElement.innerHTML = '<span>✅</span> API key configured';
+                statusElement.innerHTML = '<span>✅</span> API key configured - Vision processing enabled';
                 if (typeof aiExtractor !== 'undefined') {
                     aiExtractor.setApiKey(apiKey);
                 }
@@ -766,7 +755,7 @@
         function updateManualPrompt() {
             const promptElement = document.getElementById('manualPrompt');
             if (typeof aiExtractor !== 'undefined' && aiExtractor.generateManualPrompt) {
-                promptElement.textContent = aiExtractor.generateManualPrompt('Your expense365 statement text here...');
+                promptElement.textContent = aiExtractor.generateManualPrompt('');
             } else {
                 promptElement.textContent = 'AI extraction module not loaded. Please refresh the page.';
             }
@@ -797,7 +786,7 @@
             if (typeof aiExtractor !== 'undefined') {
                 aiExtractor.setApiKey(apiKey);
                 updateApiKeyStatus();
-                alert('✅ API key configured successfully!');
+                alert('✅ API key configured successfully! Both text and vision processing are now available.');
             } else {
                 alert('AI extraction module not loaded. Please refresh the page.');
             }
@@ -812,43 +801,17 @@
                 return;
             }
             
-            if (!authToken) {
-                alert('Authentication required to test API');
-                return;
-            }
-            
             try {
-                // First test with a simple prompt
-                const testPrompt = 'Extract all transactions from this test: 01/01/2025 Test transaction 100.00\n02/01/2025 Another test -50.00\n\nRespond with only JSON.';
-                
-                console.log('Testing API with simple prompt...');
-                
-                const response = await fetch('https://umhc-auth-server.vercel.app/api/claude-extract', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify({
-                        prompt: testPrompt,
-                        model: 'claude-3-5-sonnet-20241022',
-                        maxTokens: 8000,
-                        apiKey: apiKey,
-                        temperature: 0.1
-                    })
-                });
-                
-                const responseText = await response.text();
-                console.log('Test API Response:', responseText);
-                
-                if (response.ok) {
-                    const result = JSON.parse(responseText);
-                    alert('✅ API test successful!\n\nResponse preview:\n' + result.content.substring(0, 500) + '...\n\nFull response in console.');
-                    console.log('Full test response:', result.content);
-                    updateApiKeyStatus();
+                if (typeof aiExtractor !== 'undefined') {
+                    const result = await aiExtractor.testApiConnection();
+                    if (result.success) {
+                        alert('✅ API test successful!\n\nBoth text and vision processing are working correctly.');
+                        updateApiKeyStatus();
+                    } else {
+                        alert('❌ API test failed: ' + result.message);
+                    }
                 } else {
-                    const error = JSON.parse(responseText);
-                    alert('❌ API test failed: ' + (error.error || error.message || responseText));
+                    alert('AI extraction module not loaded. Please refresh the page.');
                 }
             } catch (error) {
                 console.error('API test error:', error);
@@ -924,20 +887,9 @@
                 return;
             }
             
-            // Show chunking option for large PDFs
-            if (file.type === 'application/pdf' && file.size > 2 * 1024 * 1024) { // > 2MB
-                document.getElementById('chunkingOption').style.display = 'block';
-            }
-            
             await processFileWithAPI(file);
         }
 
-        // Hide chunking option
-        function hideChunkingOption() {
-            document.getElementById('chunkingOption').style.display = 'none';
-        }
-
-        // Process file with API
         async function processFileWithAPI(file) {
             if (!authToken) {
                 alert('Authentication required for API processing');
@@ -946,46 +898,61 @@
             
             const apiKey = document.getElementById('apiKeyInput').value.trim();
             showProcessingStatus();
-            
+        
             try {
                 // Step 1: Upload
                 updateProcessingStep('upload', 'complete', 'File uploaded successfully');
                 
-                // Step 2: Extract text
-                updateProcessingStep('extract', 'active', 'Extracting text from document...');
-                const extractedText = await aiExtractor.extractTextFromFile(file);
-                updateProcessingStep('extract', 'complete', 'Text extracted successfully');
+                // Step 2: Extract text for preview (optional)
+                updateProcessingStep('extract', 'active', 'Preparing document for AI analysis...');
                 
-                // Show extracted text for debugging
-                const extractedTextDebug = document.getElementById('extractedTextDebug');
-                const extractedTextPreview = document.getElementById('extractedTextPreview');
-                extractedTextPreview.textContent = extractedText.substring(0, 2000) + (extractedText.length > 2000 ? '\n...(truncated for preview)' : '');
-                extractedTextDebug.style.display = 'block';
+                // Extract text for preview purposes only
+                let previewText = '';
+                try {
+                    previewText = await aiExtractor.extractTextFromFile(file);
+                    console.log('Preview text extracted for debugging');
+                } catch (error) {
+                    console.warn('Could not extract preview text, but AI will still analyze the file', error);
+                    previewText = 'Preview not available - AI will analyze the visual content directly';
+                }
                 
-                // Log text statistics
-                const lineCount = extractedText.split('\n').length;
-                const possibleTransactions = (extractedText.match(/\d{1,2}\/\d{1,2}\/\d{4}/g) || []).length;
-                console.log(`Extracted text stats: ${lineCount} lines, ~${possibleTransactions} possible transactions`);
-                console.log('First 500 chars of extracted text:', extractedText.substring(0, 500));
+                updateProcessingStep('extract', 'complete', 'Document prepared for AI');
                 
-                // Step 3: AI processing
-                updateProcessingStep('ai', 'active', `Processing ${possibleTransactions} potential transactions with Claude AI...`);
+                // Show preview if we got any text
+                if (previewText && previewText.length > 0) {
+                    const extractedTextDebug = document.getElementById('extractedTextDebug');
+                    const extractedTextPreview = document.getElementById('extractedTextPreview');
+                    extractedTextPreview.textContent = previewText.substring(0, 2000) + 
+                        (previewText.length > 2000 ? '\n...(truncated for preview)' : '');
+                    extractedTextDebug.style.display = 'block';
+                }
+                
+                // Log file info
+                console.log(`Processing ${file.type} file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+                
+                // Step 3: AI processing with the actual file
+                updateProcessingStep('ai', 'active', `Analyzing document with Claude AI vision...`);
                 
                 let result;
                 try {
-                    result = await aiExtractor.processWithAI(extractedText, apiKey, authToken);
+                    // Pass the file directly to processWithAI
+                    result = await aiExtractor.processWithAI(file, apiKey, authToken);
                 } catch (aiError) {
-                    // Even if AI processing fails, show the debug panel
-                    showDebugPanel();
+                    // Show the debug panel even on error
+                    if (debugMode) {
+                        showDebugPanel();
+                    }
                     throw aiError;
                 }
                 
-                updateProcessingStep('ai', 'complete', 'AI processing complete');
+                updateProcessingStep('ai', 'complete', 'AI analysis complete');
                 
-                // ALWAYS show debug panel immediately
-                showDebugPanel();
+                // Show debug panel if in debug mode
+                if (debugMode) {
+                    showDebugPanel();
+                }
                 
-                // Also show raw response in an alert for immediate visibility
+                // Log the raw response
                 const rawResponse = aiExtractor.getLastRawResponse();
                 console.log('=== FULL RAW CLAUDE RESPONSE ===');
                 console.log(rawResponse);
@@ -999,68 +966,62 @@
                     extractedTransactions = validatedTransactions;
                     updateProcessingStep('review', 'complete', `${validatedTransactions.length} transactions ready for review`);
                     
-                    // Show warning about transaction count
-                    if (validatedTransactions.length < possibleTransactions * 0.5) {
-                        alert(`⚠️ IMPORTANT: Only ${validatedTransactions.length} transactions were extracted, but the document appears to contain ~${possibleTransactions} transactions.\n\nCheck the Debug Panel to see what Claude returned.`);
+                    // Show summary in console
+                    if (result.summary) {
+                        console.log('Extraction Summary:', result.summary);
+                    }
+                    
+                    // Check if we got a reasonable number of transactions
+                    if (validatedTransactions.length === 0) {
+                        alert('⚠️ No transactions were extracted. This might indicate:\n\n' +
+                            '1. The document format is not recognized\n' +
+                            '2. The image quality is too low\n' +
+                            '3. The document doesn\'t contain transaction data\n\n' +
+                            'Please check the Debug Panel for details.');
+                    } else if (result.summary && result.summary.documentInfo) {
+                        console.log('Document info from AI:', result.summary.documentInfo);
                     }
                     
                     displayExtractedData(validatedTransactions);
-                } catch (parseError) {
-                    console.error('Parse error:', parseError);
-                    alert(`Failed to parse Claude's response. Check the Debug Panel for the raw output.\n\nError: ${parseError.message}`);
-                    updateProcessingStep('review', 'error', 'Failed to parse response');
-                }
+                    
+                    } catch (parseError) {
+                        console.error('Parse error:', parseError);
+                        alert(`Failed to parse Claude's response. Check the Debug Panel for the raw output.\n\nError: ${parseError.message}`);
+                        updateProcessingStep('review', 'error', 'Failed to parse response');
+                    }
                 
             } catch (error) {
                 console.error('Processing error:', error);
                 updateProcessingStep('ai', 'error', `Error: ${error.message}`);
                 
-                alert(`❌ Processing failed: ${error.message}\n\nCheck the Debug Panel and browser console for details.`);
+                // Provide helpful error messages
+                let errorMessage = `❌ Processing failed: ${error.message}`;
+                
+                if (error.message.includes('rate_limit')) {
+                    errorMessage += '\n\nYou\'ve hit the API rate limit. Please wait a minute and try again.';
+                } else if (error.message.includes('invalid_api_key')) {
+                    errorMessage += '\n\nYour API key appears to be invalid. Please check and update it.';
+                } else if (error.message.includes('model')) {
+                    errorMessage += '\n\nThe AI model specified is not available. The system will use the default model.';
+                }
+                
+                errorMessage += '\n\nCheck the Debug Panel and browser console for more details.';
+                
+                alert(errorMessage);
                 document.getElementById('processingStatus').style.display = 'none';
             }
         }
 
-        // Hide extracted text debug
-        function hideExtractedTextDebug() {
-            document.getElementById('extractedTextDebug').style.display = 'none';
-        }
-
         // Show debug panel with raw Claude response
         function showDebugPanel() {
-            if (!debugMode) return; // Only show if debug mode is enabled
+            if (!debugMode) return;
             
             const debugPanel = document.getElementById('debugPanel');
             const rawResponseElement = document.getElementById('rawResponse');
             
-            if (!debugPanel || !rawResponseElement) {
-                console.error('Debug panel elements not found in DOM');
-                return;
-            }
-            
             if (typeof aiExtractor !== 'undefined' && aiExtractor.getLastRawResponse) {
                 const rawResponse = aiExtractor.getLastRawResponse();
                 rawResponseElement.textContent = rawResponse;
-                debugPanel.style.display = 'block';
-                
-                // Check if response looks truncated
-                if (rawResponse.includes('"transactions":[') && !rawResponse.includes('"summary":')) {
-                    console.error('WARNING: Claude response appears to be truncated!');
-                    rawResponseElement.style.border = '2px solid red';
-                    alert('⚠️ WARNING: Claude\'s response appears to be truncated! Check the Debug Panel.');
-                }
-                
-                // Check if response shows only a few transactions when more were expected
-                try {
-                    const transactionMatches = rawResponse.match(/"date"\s*:\s*"/g);
-                    if (transactionMatches) {
-                        const transactionCount = transactionMatches.length;
-                        console.log(`Raw response contains ${transactionCount} transaction entries`);
-                    }
-                } catch (e) {
-                    console.error('Could not count transactions in raw response:', e);
-                }
-            } else {
-                rawResponseElement.textContent = 'AI extractor not available or no response captured yet';
                 debugPanel.style.display = 'block';
             }
         }
@@ -1079,9 +1040,12 @@
         }
 
         // Show processing status
-        function showProcessingStatus() {
+        function showProcessingStatus(file) {
             const statusDiv = document.getElementById('processingStatus');
             statusDiv.style.display = 'block';
+            
+            const isImage = file.type.startsWith('image/');
+            const methodText = isImage ? 'Analyzing with Claude Vision...' : 'Extracting text and processing...';
             
             const stepsDiv = document.getElementById('processingSteps');
             stepsDiv.innerHTML = `
@@ -1089,16 +1053,16 @@
                     <div class="step-icon">📤</div>
                     <div>Uploading file...</div>
                 </div>
-                <div class="processing-step" id="step-extract">
-                    <div class="step-icon">📄</div>
-                    <div>Extracting text...</div>
+                <div class="processing-step" id="step-method">
+                    <div class="step-icon">${isImage ? '👁️' : '📄'}</div>
+                    <div>${methodText}</div>
                 </div>
                 <div class="processing-step" id="step-ai">
                     <div class="step-icon">🤖</div>
                     <div>AI processing...</div>
                 </div>
                 <div class="processing-step" id="step-review">
-                    <div class="step-icon">👁️</div>
+                    <div class="step-icon">✅</div>
                     <div>Ready for review</div>
                 </div>
             `;
@@ -1114,15 +1078,16 @@
         }
 
         // Display extracted data
-        function displayExtractedData(transactions) {
+        function displayExtractedData(transactions, metadata) {
             const dataDiv = document.getElementById('extractedData');
             const transactionsDiv = document.getElementById('extractedTransactions');
             
             // Add summary at the top
             let html = `
                 <div style="background: #e7f3ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                    <strong>Extraction Summary:</strong> ${transactions.length} transactions extracted
-                    ${transactions.length > 20 ? ' (showing all - scroll to review)' : ''}
+                    <strong>Extraction Summary:</strong> ${transactions.length} transactions extracted<br>
+                    <strong>Processing Method:</strong> ${metadata.processingMethod}<br>
+                    <strong>File:</strong> ${metadata.fileName}
                 </div>
             `;
             
@@ -1181,7 +1146,7 @@
             });
             
             if (transactions.length > 10) {
-                html += '</div>'; // Close scrollable container
+                html += '</div>';
             }
             
             html += `
@@ -1195,7 +1160,6 @@
             transactionsDiv.innerHTML = html;
             dataDiv.style.display = 'block';
             
-            // Scroll to top of extracted data
             dataDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
@@ -1208,7 +1172,6 @@
 
         // Save all extracted transactions
         function saveAllTransactions() {
-            // Collect updated values
             const updatedTransactions = extractedTransactions.map((transaction, index) => {
                 return {
                     ...transaction,
@@ -1221,7 +1184,6 @@
                 };
             });
             
-            // In a real implementation, save to data store
             console.log('Saving transactions:', updatedTransactions);
             alert(`✅ ${updatedTransactions.length} transactions saved successfully!`);
             

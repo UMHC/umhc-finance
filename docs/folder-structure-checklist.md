@@ -5,7 +5,8 @@
 Copy and paste this structure into your `umhc-finance` repository:
 
 ### 📁 Root Level Files
-```
+
+```txt
 - [ ] README.md (✅ Created above)
 - [ ] index.html (✅ Created above)
 - [ ] admin-login.html (create in Phase 3)
@@ -14,7 +15,8 @@ Copy and paste this structure into your `umhc-finance` repository:
 ```
 
 ### 📁 CSS Folder (`css/`)
-```
+
+```txt
 css/
 - [ ] main.css (✅ Created above)
 - [ ] dashboard.css (create in Phase 2)
@@ -23,7 +25,8 @@ css/
 ```
 
 ### 📁 JavaScript Folder (`js/`)
-```
+
+```txt
 js/
 - [ ] config.js (✅ Created above)
 - [ ] utils.js (create next)
@@ -35,7 +38,8 @@ js/
 ```
 
 ### 📁 Data Folder (`data/`)
-```
+
+```txt
 data/
 - [ ] transactions.csv (create sample data)
 - [ ] summary.json (create sample summary)
@@ -43,7 +47,8 @@ data/
 ```
 
 ### 📁 Assets Folder (`assets/`)
-```
+
+```txt
 assets/
 ├── images/
 │   - [ ] logo.png (optional)
@@ -55,7 +60,8 @@ assets/
 ```
 
 ### 📁 Documentation Folder (`docs/`)
-```
+
+```txt
 docs/
 - [ ] setup-guide.md (create in Phase 6)
 - [ ] user-manual.md (create in Phase 6)
@@ -68,6 +74,7 @@ docs/
 If you're comfortable with command line, you can create this structure quickly:
 
 ### Using Command Line (Git Bash/Terminal)
+
 ```bash
 # Navigate to your repository
 cd umhc-finance
@@ -85,6 +92,7 @@ echo "# Keep this folder in git" > data/.gitkeep
 ```
 
 ### Using GitHub Web Interface
+
 1. Click "Create new file"
 2. Type the folder path (e.g., `css/main.css`)
 3. Add some basic content
@@ -93,6 +101,7 @@ echo "# Keep this folder in git" > data/.gitkeep
 ## 📝 Next Steps - Create These Files Now
 
 ### 1. Create `js/utils.js` (Basic Version)
+
 ```javascript
 // js/utils.js - Helper functions
 const Utils = {
@@ -118,6 +127,7 @@ window.Utils = Utils;
 ```
 
 ### 2. Create `data/transactions.csv` (Sample Data)
+
 ```csv
 Date,Description,Amount,Type,Category,Event,Reference
 18/04/2025,Welsh 3000s Registration,1610.00,Income,Event Registration,Welsh 3000s 2025,REG001
@@ -128,6 +138,7 @@ Date,Description,Amount,Type,Category,Event,Reference
 ```
 
 ### 3. Create `data/summary.json` (Sample Summary)
+
 ```json
 {
   "lastUpdated": "2025-07-04T12:00:00Z",
@@ -153,7 +164,8 @@ Date,Description,Amount,Type,Category,Event,Reference
 ```
 
 ### 4. Create `.gitignore` (Optional but Recommended)
-```
+
+```md
 # Logs
 *.log
 npm-debug.log*
@@ -195,6 +207,7 @@ Thumbs.db
 ```
 
 ### 5. Create Basic CSS Files (Placeholder)
+
 ```css
 /* css/dashboard.css */
 /* Dashboard-specific styles will go here */
@@ -216,6 +229,7 @@ Thumbs.db
 ## ✅ Success Criteria
 
 Your setup is complete when:
+
 - [ ] GitHub Pages shows your dashboard
 - [ ] No 404 errors for CSS/JS files
 - [ ] Sample financial data displays correctly
@@ -224,28 +238,33 @@ Your setup is complete when:
 
 ## 🆘 Troubleshooting
 
-### Common Issues:
+### Common Issues
 
 **CSS not loading?**
+
 - Check file paths are correct (case-sensitive!)
 - Make sure CSS files exist and have content
 
 **JavaScript errors?**
+
 - Open browser dev tools (F12)
 - Check console for error messages
 - Ensure files are loading in correct order
 
 **GitHub Pages not updating?**
+
 - Changes can take 5-10 minutes to deploy
 - Check Settings → Pages for build status
 
 **Sample data not showing?**
+
 - Verify CSV and JSON files are properly formatted
 - Check browser console for parsing errors
 
 ## 📞 Need Help?
 
 If you get stuck:
+
 1. Check browser console for errors (F12)
 2. Verify all files exist and have content
 3. Compare your structure to this checklist
@@ -254,6 +273,7 @@ If you get stuck:
 ## 🎉 Next Phase
 
 Once this is working, you'll have:
+
 - ✅ Professional-looking finance dashboard
 - ✅ Proper file structure for future development
 - ✅ Sample data to demonstrate the concept
