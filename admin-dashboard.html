@@ -475,6 +475,25 @@
                     <button class="btn secondary" onclick="window.open('https://claude.ai', '_blank')">🌐 Open claude.ai</button>
                 </div>
 
+                <!-- Extracted Text Debug -->
+                <div id="extractedTextDebug" class="api-config-section" style="display: none; background: #e8f5e9; border-left: 4px solid #4caf50;">
+                    <h3>📄 Extracted Text from Document</h3>
+                    <p>This shows the text extracted from your PDF (first 2000 chars):</p>
+                    <pre id="extractedTextPreview" style="background: white; padding: 1rem; border-radius: 5px; overflow-x: auto; max-height: 300px; overflow-y: auto; font-size: 0.8rem; white-space: pre-wrap;"></pre>
+                    <button class="btn secondary" onclick="hideExtractedTextDebug()">Hide</button>
+                </div>
+
+                <!-- Debug Panel for Raw Claude Response -->
+                <div id="debugPanel" class="api-config-section" style="display: none; background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h3>🐛 Debug: Raw Claude Response</h3>
+                    <p>This shows the exact response from Claude API (useful for troubleshooting):</p>
+                    <pre id="rawResponse" style="background: white; padding: 1rem; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto; font-size: 0.8rem; white-space: pre-wrap;"></pre>
+                    <div class="action-buttons">
+                        <button class="btn secondary" onclick="copyRawResponse()">📋 Copy Response</button>
+                        <button class="btn secondary" onclick="hideDebugPanel()">Hide Debug</button>
+                    </div>
+                </div>
+
                 <!-- Upload Area -->
                 <div class="upload-area" 
                      onclick="document.getElementById('fileInput').click()"
@@ -500,7 +519,7 @@
                     </div>
                 </div>
 
-                // Display extracted data review -->
+                <!-- Display extracted data review -->
                 <div id="extractedData" class="extracted-data" style="display: none;">
                     <h3>Review Extracted Data</h3>
                     <p>AI has extracted the following transactions. Please review and modify if needed:</p>
@@ -1301,16 +1320,5 @@
             }
         }
     </script>
-
-    <!-- Debug Panel for Raw Claude Response -->
-    <div id="debugPanel" class="api-config-section" style="display: none; background: #fff3cd; border-left: 4px solid #ffc107;">
-        <h3>🐛 Debug: Raw Claude Response</h3>
-        <p>This shows the exact response from Claude API (useful for troubleshooting):</p>
-        <pre id="rawResponse" style="background: white; padding: 1rem; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto; font-size: 0.8rem; white-space: pre-wrap;"></pre>
-        <div class="action-buttons">
-            <button class="btn secondary" onclick="copyRawResponse()">📋 Copy Response</button>
-            <button class="btn secondary" onclick="hideDebugPanel()">Hide Debug</button>
-        </div>
-    </div>
 </body>
 </html>
