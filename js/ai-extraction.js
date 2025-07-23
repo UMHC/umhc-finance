@@ -175,7 +175,7 @@ class AIExtractor {
             
             if (file.type === 'application/pdf') {
                 messageContent.push({
-                    type: "document",
+                    type: "image",
                     source: {
                         type: "base64",
                         media_type: "application/pdf",
