@@ -442,66 +442,76 @@
                 <h2>AI Document Processing</h2>
                 <p>Upload expense365 PDFs or images for automatic data extraction using Claude AI with vision capabilities.</p>
 
-                <!-- API Configuration Section -->
+                <!-- Free OCR Configuration Section -->
                 <div class="api-config-section">
-                    <h3>🔧 Claude AI Configuration</h3>
+                    <h3>🆓 Free OCR Processing</h3>
+                    
+                    <div id="ocrStatus" class="status-indicator configured">
+                        <span>✅</span> Free OCR ready - No API keys needed!
+                    </div>
+                    
+                    <div class="processing-method" id="processingMethodInfo">
+                        <h4>🎯 Processing Method</h4>
+                        <p><strong>Images (PNG/JPG):</strong> Tesseract.js OCR with financial document optimization</p>
+                        <p><strong>PDFs:</strong> PDF.js text extraction + OCR fallback for scanned documents</p>
+                        <p><strong>Cost:</strong> £0.00 - Completely free open-source processing!</p>
+                    </div>
                     
                     <div class="form-group">
-                        <label for="apiKeyInput">Claude API Key:</label>
+                        <label for="ocrSpaceKey">OCR.Space API Key (Optional Backup - 500 free/month):</label>
                         <input type="password" 
-                               id="apiKeyInput" 
+                               id="ocrSpaceKey" 
                                class="api-key-input" 
-                               placeholder="sk-ant-api03-..."
-                               onchange="updateApiKeyStatus()">
+                               placeholder="Leave blank to use only free processing"
+                               onchange="setBackupOCR()">
                     </div>
                     
                     <div class="action-buttons">
-                        <button class="btn btn-success" onclick="setApiKey()">🔑 Set API Key</button>
-                        <button class="btn secondary" onclick="testApiConnection()">🧪 Test Connection</button>
+                        <button class="btn btn-success" onclick="testOCREngine()">🧪 Test OCR Engine</button>
+                        <button class="btn secondary" onclick="showOCRStats()">📊 View Processing Stats</button>
                         <button class="btn secondary" onclick="toggleDebugMode()">🐛 Toggle Debug Mode</button>
                     </div>
                     
-                    <div id="apiStatus" class="status-indicator not-configured">
-                        <span>❌</span> API key not configured
-                    </div>
-                    
                     <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
-                        <strong>Get an API key:</strong> Visit <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> and create an API key.
-                        Cost: ~£0.01-0.05 per document.
+                        <strong>100% Free Processing:</strong> No API costs, no limits, complete privacy.
+                        Optional backup: <a href="https://ocr.space" target="_blank">OCR.Space</a> offers 500 free requests/month.
                     </p>
-
-                    <div class="processing-method" id="processingMethodInfo">
-                        <h4>🎯 Processing Method</h4>
-                        <p><strong>Images (PNG/JPG):</strong> Analyzed directly by Claude Vision - higher accuracy for visual documents</p>
-                        <p><strong>PDFs:</strong> Text extracted first, then processed by Claude AI - best for text-heavy documents</p>
-                    </div>
                 </div>
 
-                <!-- Alternative Instructions -->
-                <div id="noApiInstructions" class="api-config-section" style="background: #f8f9fa; border-left: 4px solid #17a2b8;">
-                    <h3>💡 Alternative: Use Claude.ai Directly (Free)</h3>
-                    <p>If you don't have an API key, you can still extract transaction data:</p>
+                <!-- Processing Information -->
+                <div id="processingInfo" class="api-config-section" style="background: #e8f5e9; border-left: 4px solid #28a745;">
+                    <h3>🚀 How It Works</h3>
+                    <p><strong>Smart Processing Pipeline:</strong></p>
                     <ol style="margin: 1rem 0; padding-left: 1.5rem;">
-                        <li>Go to <a href="https://claude.ai" target="_blank">claude.ai</a> (free account required)</li>
-                        <li>Upload your PDF or image directly to the chat</li>
-                        <li>Copy and paste the prompt below</li>
+                        <li><strong>Upload:</strong> Drop your expense365 PDF or statement image</li>
+                        <li><strong>OCR:</strong> Tesseract.js extracts all text with financial optimization</li>
+                        <li><strong>Pattern Matching:</strong> UMHC-specific patterns find transactions</li>
+                        <li><strong>Validation:</strong> Confidence scoring + manual review for accuracy</li>
+                        <li><strong>Categories:</strong> Auto-categorization using your existing categories</li>
                     </ol>
                     
                     <div style="background: white; padding: 1rem; border-radius: 5px; margin: 1rem 0;">
-                        <code id="manualPrompt" style="white-space: pre-wrap; font-size: 0.9rem;">Loading prompt...</code>
+                        <strong>Optimized for UMHC:</strong> Welsh 3000s, memberships, transport, accommodation, and more!
                     </div>
-                    
-                    <button class="btn secondary" onclick="copyPrompt()">📋 Copy Prompt</button>
-                    <button class="btn secondary" onclick="window.open('https://claude.ai', '_blank')">🌐 Open claude.ai</button>
                 </div>
 
-                <!-- Debug Panel for Raw Claude Response -->
+                <!-- Debug Panel for OCR Processing -->
                 <div id="debugPanel" class="api-config-section" style="display: none; background: #fff3cd; border-left: 4px solid #ffc107;">
-                    <h3>🐛 Debug: Raw Claude Response</h3>
-                    <p>This shows the exact response from Claude API (useful for troubleshooting):</p>
-                    <pre id="rawResponse" style="background: white; padding: 1rem; border-radius: 5px; overflow-x: auto; max-height: 400px; overflow-y: auto; font-size: 0.8rem; white-space: pre-wrap;"></pre>
+                    <h3>🐛 Debug: OCR Processing Details</h3>
+                    <p>This shows the raw OCR output and pattern matching results:</p>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <h4>Raw OCR Text:</h4>
+                        <pre id="rawOCRText" style="background: white; padding: 1rem; border-radius: 5px; overflow-x: auto; max-height: 200px; overflow-y: auto; font-size: 0.8rem; white-space: pre-wrap;"></pre>
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <h4>Pattern Matching Results:</h4>
+                        <pre id="patternResults" style="background: white; padding: 1rem; border-radius: 5px; overflow-x: auto; max-height: 200px; overflow-y: auto; font-size: 0.8rem; white-space: pre-wrap;"></pre>
+                    </div>
+                    
                     <div class="action-buttons">
-                        <button class="btn secondary" onclick="copyRawResponse()">📋 Copy Response</button>
+                        <button class="btn secondary" onclick="copyDebugInfo()">📋 Copy Debug Info</button>
                         <button class="btn secondary" onclick="hideDebugPanel()">Hide Debug</button>
                     </div>
                 </div>
@@ -514,7 +524,7 @@
                      ondragleave="handleDragLeave(event)">
                     <div class="upload-icon">📄</div>
                     <div class="upload-text" id="uploadText">Drop files here or click to upload</div>
-                    <div class="upload-hint" id="uploadHint">Supports: PDF, PNG, JPG (max 10MB) • Images processed with Claude Vision</div>
+                    <div class="upload-hint" id="uploadHint">Supports: PDF, PNG, JPG (max 10MB) • Completely free OCR processing</div>
                     <input type="file" 
                            id="fileInput" 
                            class="file-input" 
@@ -664,10 +674,24 @@
         function toggleDebugMode() {
             debugMode = !debugMode;
             const status = debugMode ? 'enabled' : 'disabled';
-            alert(`Debug mode is now ${status}. When enabled, you'll see raw Claude API responses.`);
+            alert(`Debug mode is now ${status}. When enabled, you'll see raw OCR text and pattern matching details.`);
             
             if (!debugMode) {
                 hideDebugPanel();
+            }
+        }
+
+        // Update processing progress (callback from OCR processor)
+        function updateProcessingProgress(message, progress) {
+            console.log(`Free OCR: ${message}${progress ? ` (${Math.round(progress * 100)}%)` : ''}`);
+            
+            // Update UI with progress if we have a current processing step
+            const activeStep = document.querySelector('.processing-step.active');
+            if (activeStep) {
+                const messageDiv = activeStep.querySelector('div:last-child');
+                if (messageDiv) {
+                    messageDiv.textContent = message;
+                }
             }
         }
 
@@ -681,7 +705,7 @@
                 await dataManager.loadData();
                 populateFormOptions();
                 updateQuickStats();
-                initializeAIConfiguration();
+                initializeOCRConfiguration();
                 
                 console.log('✅ Admin Dashboard loaded successfully');
             } catch (error) {
@@ -728,96 +752,58 @@
             window.location.href = 'admin-login.html';
         }
 
-        // Initialize AI configuration
-        function initializeAIConfiguration() {
-            updateApiKeyStatus();
-            updateManualPrompt();
-        }
-
-        // Update API key status
-        function updateApiKeyStatus() {
-            const statusElement = document.getElementById('apiStatus');
-            const apiKey = document.getElementById('apiKeyInput').value;
+        // Initialize OCR configuration
+        function initializeOCRConfiguration() {
+            // OCR is always ready - no API keys needed!
+            updateOCRStatus();
             
-            if (apiKey && apiKey.startsWith('sk-ant-api')) {
-                statusElement.className = 'status-indicator configured';
-                statusElement.innerHTML = '<span>✅</span> API key configured - Vision processing enabled';
-                if (typeof aiExtractor !== 'undefined') {
-                    aiExtractor.setApiKey(apiKey);
-                }
-            } else {
-                statusElement.className = 'status-indicator not-configured';
-                statusElement.innerHTML = '<span>❌</span> API key not configured';
+            if (typeof ocrProcessor !== 'undefined') {
+                ocrProcessor.setProgressCallback(updateProcessingProgress);
             }
         }
 
-        // Update manual prompt
-        function updateManualPrompt() {
-            const promptElement = document.getElementById('manualPrompt');
-            if (typeof aiExtractor !== 'undefined' && aiExtractor.generateManualPrompt) {
-                promptElement.textContent = aiExtractor.generateManualPrompt('');
-            } else {
-                promptElement.textContent = 'AI extraction module not loaded. Please refresh the page.';
+        // Update OCR status (always ready)
+        function updateOCRStatus() {
+            const statusElement = document.getElementById('ocrStatus');
+            statusElement.className = 'status-indicator configured';
+            statusElement.innerHTML = '<span>✅</span> Free OCR ready - No costs, no limits!';
+        }
+
+        // Set backup OCR.Space API key
+        function setBackupOCR() {
+            const apiKey = document.getElementById('ocrSpaceKey').value.trim();
+            
+            if (apiKey && typeof ocrProcessor !== 'undefined') {
+                ocrProcessor.setOCRSpaceApiKey(apiKey);
+                alert('✅ Backup OCR configured! You now have 500 extra requests/month.');
             }
         }
 
-        // Copy prompt to clipboard
-        function copyPrompt() {
-            const promptElement = document.getElementById('manualPrompt');
-            navigator.clipboard.writeText(promptElement.textContent)
-                .then(() => alert('Prompt copied to clipboard!'))
-                .catch(err => alert('Failed to copy prompt: ' + err.message));
-        }
-
-        // Set API key
-        function setApiKey() {
-            const apiKey = document.getElementById('apiKeyInput').value.trim();
-            
-            if (!apiKey) {
-                alert('Please enter an API key');
-                return;
-            }
-            
-            if (!apiKey.startsWith('sk-ant-api')) {
-                alert('Invalid API key format. Should start with "sk-ant-api"');
-                return;
-            }
-            
-            if (typeof aiExtractor !== 'undefined') {
-                aiExtractor.setApiKey(apiKey);
-                updateApiKeyStatus();
-                alert('✅ API key configured successfully! Both text and vision processing are now available.');
-            } else {
-                alert('AI extraction module not loaded. Please refresh the page.');
-            }
-        }
-
-        // Test API connection
-        async function testApiConnection() {
-            const apiKey = document.getElementById('apiKeyInput').value.trim();
-            
-            if (!apiKey) {
-                alert('Please enter an API key first');
-                return;
-            }
-            
+        // Test OCR engine
+        async function testOCREngine() {
             try {
-                if (typeof aiExtractor !== 'undefined') {
-                    const result = await aiExtractor.testApiConnection();
-                    if (result.success) {
-                        alert('✅ API test successful!\n\nBoth text and vision processing are working correctly.');
-                        updateApiKeyStatus();
-                    } else {
-                        alert('❌ API test failed: ' + result.message);
-                    }
+                if (typeof ocrProcessor !== 'undefined') {
+                    await ocrProcessor.initializeTesseract();
+                    alert('✅ OCR engine test successful!\n\nTesseract.js is loaded and ready for processing.');
                 } else {
-                    alert('AI extraction module not loaded. Please refresh the page.');
+                    alert('OCR processor not loaded. Please refresh the page.');
                 }
             } catch (error) {
-                console.error('API test error:', error);
-                alert('❌ API test failed: ' + error.message);
+                console.error('OCR test error:', error);
+                alert('❌ OCR test failed: ' + error.message);
             }
         }
+
+        // Show OCR processing stats
+        function showOCRStats() {
+            if (typeof ocrProcessor !== 'undefined') {
+                const stats = ocrProcessor.getStats();
+                alert(`OCR Engine Status:\n\nInitialized: ${stats.isInitialized ? 'Yes' : 'No'}\nBackup API: ${stats.hasBackupAPI ? 'Configured' : 'Not set'}\nDocuments Processed: ${stats.currentProcessingId}\n\nCompletely free processing - no API costs!`);
+            } else {
+                alert('OCR processor not loaded. Please refresh the page.');
+            }
+        }
+
 
         // Switch tabs
         function switchTab(tabName) {
@@ -880,150 +866,113 @@
             const file = files[0];
             if (!validateFile(file)) return;
             
-            const apiKey = document.getElementById('apiKeyInput').value.trim();
-            
-            if (!apiKey || !apiKey.startsWith('sk-ant-api')) {
-                alert('❌ Please configure your Claude API key first.\n\nEnter your API key in the configuration section above.');
-                return;
-            }
-            
-            await processFileWithAPI(file);
+            // Free OCR processing - no API key needed!
+            await processFileWithOCR(file);
         }
 
-        async function processFileWithAPI(file) {
-            if (!authToken) {
-                alert('Authentication required for API processing');
-                return;
-            }
+        async function processFileWithOCR(file) {
+            showProcessingStatus(file);
             
-            const apiKey = document.getElementById('apiKeyInput').value.trim();
-            showProcessingStatus();
-        
             try {
                 // Step 1: Upload
                 updateProcessingStep('upload', 'complete', 'File uploaded successfully');
                 
-                // Step 2: Extract text for preview (optional)
-                updateProcessingStep('extract', 'active', 'Preparing document for AI analysis...');
-                
-                // Extract text for preview purposes only
-                let previewText = '';
-                try {
-                    previewText = await aiExtractor.extractTextFromFile(file);
-                    console.log('Preview text extracted for debugging');
-                } catch (error) {
-                    console.warn('Could not extract preview text, but AI will still analyze the file', error);
-                    previewText = 'Preview not available - AI will analyze the visual content directly';
-                }
-                
-                updateProcessingStep('extract', 'complete', 'Document prepared for AI');
-                
-                // Show preview if we got any text
-                if (previewText && previewText.length > 0) {
-                    const extractedTextDebug = document.getElementById('extractedTextDebug');
-                    const extractedTextPreview = document.getElementById('extractedTextPreview');
-                    extractedTextPreview.textContent = previewText.substring(0, 2000) + 
-                        (previewText.length > 2000 ? '\n...(truncated for preview)' : '');
-                    extractedTextDebug.style.display = 'block';
-                }
-                
-                // Log file info
-                console.log(`Processing ${file.type} file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
-                
-                // Step 3: AI processing with the actual file
-                updateProcessingStep('ai', 'active', `Analyzing document with Claude AI vision...`);
+                // Step 2: OCR Processing
+                updateProcessingStep('extract', 'active', 'Starting free OCR processing...');
                 
                 let result;
                 try {
-                    // Pass the file directly to processWithAI
-                    result = await aiExtractor.processWithAI(file, apiKey, authToken);
-                } catch (aiError) {
-                    // Show the debug panel even on error
-                    if (debugMode) {
-                        showDebugPanel();
+                    result = await ocrProcessor.processDocument(file);
+                } catch (ocrError) {
+                    // Try backup processing if available
+                    if (ocrProcessor.ocrSpaceApiKey) {
+                        updateProcessingStep('extract', 'active', 'Trying backup OCR service...');
+                        result = await ocrProcessor.processWithOCRSpace(file);
+                    } else {
+                        throw ocrError;
                     }
-                    throw aiError;
                 }
                 
-                updateProcessingStep('ai', 'complete', 'AI analysis complete');
+                updateProcessingStep('extract', 'complete', 'OCR processing complete');
                 
-                // Show debug panel if in debug mode
+                // Step 3: Parse transactions with expense365 parser
+                updateProcessingStep('ai', 'active', 'Extracting transactions with UMHC patterns...');
+                
+                const parser = new Expense365Parser();
+                const parseResult = parser.parseDocument(result.fullText, file.name);
+                
+                // Combine OCR and parser results
+                const finalResult = {
+                    transactions: parseResult.transactions,
+                    summary: {
+                        ...result.summary,
+                        ...parseResult.parsingStats,
+                        totalTransactions: parseResult.transactions.length
+                    },
+                    fullText: result.fullText,
+                    parseStats: parseResult.parsingStats
+                };
+                
+                updateProcessingStep('ai', 'complete', `Extracted ${parseResult.transactions.length} transactions`);
+                
+                // Show debug info if enabled
                 if (debugMode) {
-                    showDebugPanel();
+                    showOCRDebugPanel(result.fullText, parseResult);
                 }
-                
-                // Log the raw response
-                const rawResponse = aiExtractor.getLastRawResponse();
-                console.log('=== FULL RAW CLAUDE RESPONSE ===');
-                console.log(rawResponse);
-                console.log('=== END RAW CLAUDE RESPONSE ===');
                 
                 // Step 4: Display results
-                updateProcessingStep('review', 'active', 'Processing results...');
+                updateProcessingStep('review', 'active', 'Preparing results for review...');
                 
-                try {
-                    const validatedTransactions = aiExtractor.validateExtractedData(result);
-                    extractedTransactions = validatedTransactions;
-                    updateProcessingStep('review', 'complete', `${validatedTransactions.length} transactions ready for review`);
-                    
-                    // Show summary in console
-                    if (result.summary) {
-                        console.log('Extraction Summary:', result.summary);
-                    }
-                    
-                    // Check if we got a reasonable number of transactions
-                    if (validatedTransactions.length === 0) {
-                        alert('⚠️ No transactions were extracted. This might indicate:\n\n' +
-                            '1. The document format is not recognized\n' +
-                            '2. The image quality is too low\n' +
-                            '3. The document doesn\'t contain transaction data\n\n' +
-                            'Please check the Debug Panel for details.');
-                    } else if (result.summary && result.summary.documentInfo) {
-                        console.log('Document info from AI:', result.summary.documentInfo);
-                    }
-                    
-                    displayExtractedData(validatedTransactions);
-                    
-                    } catch (parseError) {
-                        console.error('Parse error:', parseError);
-                        alert(`Failed to parse Claude's response. Check the Debug Panel for the raw output.\n\nError: ${parseError.message}`);
-                        updateProcessingStep('review', 'error', 'Failed to parse response');
-                    }
+                extractedTransactions = parseResult.transactions;
+                updateProcessingStep('review', 'complete', `${parseResult.transactions.length} transactions ready for review`);
                 
-            } catch (error) {
-                console.error('Processing error:', error);
-                updateProcessingStep('ai', 'error', `Error: ${error.message}`);
-                
-                // Provide helpful error messages
-                let errorMessage = `❌ Processing failed: ${error.message}`;
-                
-                if (error.message.includes('rate_limit')) {
-                    errorMessage += '\n\nYou\'ve hit the API rate limit. Please wait a minute and try again.';
-                } else if (error.message.includes('invalid_api_key')) {
-                    errorMessage += '\n\nYour API key appears to be invalid. Please check and update it.';
-                } else if (error.message.includes('model')) {
-                    errorMessage += '\n\nThe AI model specified is not available. The system will use the default model.';
+                if (parseResult.transactions.length === 0) {
+                    alert('⚠️ No transactions were extracted. This might indicate:\n\n' +
+                        '1. The document format is not recognized by our patterns\n' +
+                        '2. The OCR quality is too low\n' +
+                        '3. The document doesn\'t contain transaction data\n\n' +
+                        'Check the Debug Panel to see the raw OCR text.');
+                } else {
+                    // Show confidence breakdown
+                    const stats = parseResult.parsingStats.confidence;
+                    console.log(`Confidence breakdown: High: ${stats.high}, Medium: ${stats.medium}, Low: ${stats.low}`);
                 }
                 
-                errorMessage += '\n\nCheck the Debug Panel and browser console for more details.';
+                displayExtractedData(parseResult.transactions, finalResult.summary);
+                
+            } catch (error) {
+                console.error('OCR processing error:', error);
+                updateProcessingStep('extract', 'error', `Error: ${error.message}`);
+                
+                let errorMessage = `❌ Free OCR processing failed: ${error.message}`;
+                
+                if (error.message.includes('Failed to load')) {
+                    errorMessage += '\n\nThere was an issue loading the OCR libraries. Please check your internet connection and try again.';
+                } else if (error.message.includes('Unsupported file type')) {
+                    errorMessage += '\n\nPlease upload a PDF, PNG, or JPG file.';
+                } else if (error.message.includes('File too large')) {
+                    errorMessage += '\n\nPlease reduce the file size to under 10MB.';
+                }
+                
+                errorMessage += '\n\nThis is completely free processing - no API costs involved!';
                 
                 alert(errorMessage);
                 document.getElementById('processingStatus').style.display = 'none';
             }
         }
 
-        // Show debug panel with raw Claude response
-        function showDebugPanel() {
+        // Show debug panel with OCR processing details
+        function showOCRDebugPanel(rawText, parseResult) {
             if (!debugMode) return;
             
             const debugPanel = document.getElementById('debugPanel');
-            const rawResponseElement = document.getElementById('rawResponse');
+            const rawOCRElement = document.getElementById('rawOCRText');
+            const patternResultsElement = document.getElementById('patternResults');
             
-            if (typeof aiExtractor !== 'undefined' && aiExtractor.getLastRawResponse) {
-                const rawResponse = aiExtractor.getLastRawResponse();
-                rawResponseElement.textContent = rawResponse;
-                debugPanel.style.display = 'block';
-            }
+            rawOCRElement.textContent = rawText;
+            patternResultsElement.textContent = JSON.stringify(parseResult.parsingStats, null, 2);
+            
+            debugPanel.style.display = 'block';
         }
 
         // Hide debug panel
@@ -1031,35 +980,39 @@
             document.getElementById('debugPanel').style.display = 'none';
         }
 
-        // Copy raw response to clipboard
-        function copyRawResponse() {
-            const rawResponse = document.getElementById('rawResponse').textContent;
-            navigator.clipboard.writeText(rawResponse)
-                .then(() => alert('Raw response copied to clipboard!'))
+        // Copy debug info to clipboard
+        function copyDebugInfo() {
+            const rawText = document.getElementById('rawOCRText').textContent;
+            const patternResults = document.getElementById('patternResults').textContent;
+            
+            const debugInfo = `=== OCR DEBUG INFO ===\n\nRAW OCR TEXT:\n${rawText}\n\nPATTERN MATCHING RESULTS:\n${patternResults}`;
+            
+            navigator.clipboard.writeText(debugInfo)
+                .then(() => alert('Debug info copied to clipboard!'))
                 .catch(err => alert('Failed to copy: ' + err.message));
         }
 
-        // Show processing status
+        // Show processing status for free OCR
         function showProcessingStatus(file) {
             const statusDiv = document.getElementById('processingStatus');
             statusDiv.style.display = 'block';
             
-            const isImage = file.type.startsWith('image/');
-            const methodText = isImage ? 'Analyzing with Claude Vision...' : 'Extracting text and processing...';
+            const isImage = file && file.type.startsWith('image/');
+            const methodText = isImage ? 'OCR processing image...' : 'Extracting text from PDF...';
             
             const stepsDiv = document.getElementById('processingSteps');
             stepsDiv.innerHTML = `
                 <div class="processing-step active" id="step-upload">
                     <div class="step-icon">📤</div>
-                    <div>Uploading file...</div>
+                    <div>File uploaded</div>
                 </div>
-                <div class="processing-step" id="step-method">
-                    <div class="step-icon">${isImage ? '👁️' : '📄'}</div>
+                <div class="processing-step" id="step-extract">
+                    <div class="step-icon">${isImage ? '🔍' : '📄'}</div>
                     <div>${methodText}</div>
                 </div>
                 <div class="processing-step" id="step-ai">
-                    <div class="step-icon">🤖</div>
-                    <div>AI processing...</div>
+                    <div class="step-icon">🎯</div>
+                    <div>UMHC pattern matching...</div>
                 </div>
                 <div class="processing-step" id="step-review">
                     <div class="step-icon">✅</div>
@@ -1084,10 +1037,13 @@
             
             // Add summary at the top
             let html = `
-                <div style="background: #e7f3ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                    <strong>Extraction Summary:</strong> ${transactions.length} transactions extracted<br>
-                    <strong>Processing Method:</strong> ${metadata.processingMethod}<br>
-                    <strong>File:</strong> ${metadata.fileName}
+                <div style="background: #e8f5e9; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #28a745;">
+                    <strong>🎉 Free OCR Extraction Complete!</strong><br>
+                    <strong>Transactions Found:</strong> ${transactions.length}<br>
+                    <strong>Processing Method:</strong> ${metadata.processingMethod || 'Free OCR + Pattern Matching'}<br>
+                    <strong>File:</strong> ${metadata.fileName}<br>
+                    ${metadata.confidence ? `<strong>Confidence:</strong> High: ${metadata.confidence.high}, Medium: ${metadata.confidence.medium}, Low: ${metadata.confidence.low}` : ''}
+                    <br><strong>Cost:</strong> £0.00 - Completely free! 💰
                 </div>
             `;
             
