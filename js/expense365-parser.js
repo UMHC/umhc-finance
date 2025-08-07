@@ -18,7 +18,7 @@ class Expense365Parser {
         return {
             // Dedicated Cash In/Out format: Date | Description | Cash In | Cash Out
             cashInOutFormat: {
-                regex: /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s*\|\s*([^|]+?)\s*\|\s*([£$€]?\s*[\d,]*\.?\d*|\s*)\s*\|\s*([£$€]?\s*[\d,]*\.?\d*|\s*)/gm,
+                regex: /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s*\|\s*([^|]+?)\s*\|\s*([£$€]?\s*[\d,]+\.\d{2}|)\s*\|\s*([£$€]?\s*[\d,]+\.\d{2}|)/gm,
                 fields: ['date', 'description', 'cashIn', 'cashOut'],
                 priority: 1
             },
@@ -211,9 +211,8 @@ class Expense365Parser {
             .replace(/\s*\|\s*\|\s*/g, ' | ')   // Multiple pipes to single pipe
             
             // Clean up pipe-separated structure for Cash In/Out format
-            .replace(/\|\s*£?\s*\|\s*/g, '| |') // Empty columns with currency symbols
-            .replace(/\|\s*-\s*\|/g, '| |')     // Dashes in empty columns
-            .replace(/\|\s*0\.00\s*\|/g, '| |') // Zero amounts in empty columns
+            .replace(/\|\s*£?\s*\|/g, '| |')    // Empty columns with currency symbols
+            .replace(/\|\s*\|\s*/g, '| |')      // Multiple consecutive pipes (empty cells)
             
             // Remove excessive whitespace while preserving structure
             .replace(/^\s+/gm, '')              // Leading whitespace on lines
@@ -285,20 +284,22 @@ class Expense365Parser {
                         break;
                         
                     case 'cashIn':
-                        const cashIn = this.parseAmount(value);
-                        if (cashIn !== null && cashIn > 0) {
-                            transaction.amount = cashIn;
-                            transaction.type = 'Income';
-                            transaction.cashInValue = cashIn;
+                        // Only process if value is not empty/whitespace
+                        if (value && value.trim() !== '') {
+                            const cashIn = this.parseCurrencyAmount(value);
+                            if (cashIn !== null && cashIn > 0) {
+                                transaction.cashInValue = cashIn;
+                            }
                         }
                         break;
                         
                     case 'cashOut':
-                        const cashOut = this.parseAmount(value);
-                        if (cashOut !== null && cashOut > 0) {
-                            transaction.amount = cashOut;
-                            transaction.type = 'Expense';
-                            transaction.cashOutValue = cashOut;
+                        // Only process if value is not empty/whitespace
+                        if (value && value.trim() !== '') {
+                            const cashOut = this.parseCurrencyAmount(value);
+                            if (cashOut !== null && cashOut > 0) {
+                                transaction.cashOutValue = cashOut;
+                            }
                         }
                         break;
                         
@@ -308,24 +309,28 @@ class Expense365Parser {
                 }
             }
 
-            // Handle Cash In/Out logic - determine correct amount and type
+            // Handle Cash In/Out logic - Cash In column (3rd) comes before Cash Out (4th)
             if (transaction.cashInValue && transaction.cashOutValue) {
-                // Both columns have values - this is unusual, prefer the larger amount
-                if (transaction.cashInValue >= transaction.cashOutValue) {
-                    transaction.amount = transaction.cashInValue;
-                    transaction.type = 'Income';
-                } else {
-                    transaction.amount = transaction.cashOutValue;
-                    transaction.type = 'Expense';
-                }
+                // Both columns have values - this is unusual for expense365 format
+                // This might indicate a parsing error, but if it happens, log it and prefer Cash In
+                Utils.log('warn', 'Both Cash In and Cash Out have values - unusual', {
+                    cashIn: transaction.cashInValue,
+                    cashOut: transaction.cashOutValue,
+                    description: transaction.description
+                });
+                transaction.amount = transaction.cashInValue;
+                transaction.type = 'Income';
             } else if (transaction.cashInValue && !transaction.cashOutValue) {
-                // Only Cash In has value - Income
+                // Only Cash In (3rd column) has value - Income
                 transaction.amount = transaction.cashInValue;
                 transaction.type = 'Income';
             } else if (!transaction.cashInValue && transaction.cashOutValue) {
-                // Only Cash Out has value - Expense
+                // Only Cash Out (4th column) has value - Expense  
                 transaction.amount = transaction.cashOutValue;
                 transaction.type = 'Expense';
+            } else {
+                // Neither column has a valid currency amount - invalid transaction
+                return null;
             }
             
             // Clean up temporary fields
@@ -432,8 +437,8 @@ class Expense365Parser {
             .substring(0, 80); // Limit length
     }
 
-    // Parse amount from string with enhanced logic and OCR error handling
-    parseAmount(amountStr) {
+    // Parse currency amount - requires exactly 2 decimal places (e.g., 123.45)
+    parseCurrencyAmount(amountStr) {
         if (!amountStr) return null;
         
         try {
@@ -446,64 +451,52 @@ class Expense365Parser {
                 .replace(/[G]/g, '6')     // G → 6
                 .replace(/[£$€\s]/g, ''); // Remove currency and whitespace
             
-            // Handle empty or non-numeric strings after cleaning
-            if (!cleaned || !/\d/.test(cleaned)) return null;
+            // Must have at least some digits and a decimal point
+            if (!cleaned || !/\d+\.\d/.test(cleaned)) return null;
             
             // Handle negative indicators
             const isNegative = /[\(\-]/.test(amountStr) || 
                               amountStr.toLowerCase().includes('out') ||
-                              amountStr.toLowerCase().includes('debit') ||
-                              amountStr.toLowerCase().includes('cr');
+                              amountStr.toLowerCase().includes('debit');
             
             // Remove negative indicators
             cleaned = cleaned.replace(/[\(\)\-]/g, '');
             
-            // Handle decimal point variations (OCR might see . as other chars)
-            cleaned = cleaned.replace(/[^0-9.,]/g, ''); // Only keep digits, commas, dots
+            // Only keep digits, commas, dots
+            cleaned = cleaned.replace(/[^0-9.,]/g, '');
             
-            // Handle comma thousands separators vs decimal points
+            // Handle comma thousands separators
             if (cleaned.includes(',') && cleaned.includes('.')) {
-                // Both comma and dot - assume comma is thousands separator
+                // Both comma and dot - comma should be thousands separator
                 const lastDotIndex = cleaned.lastIndexOf('.');
                 const lastCommaIndex = cleaned.lastIndexOf(',');
                 
                 if (lastDotIndex > lastCommaIndex) {
-                    // Dot comes after comma - dot is decimal point
+                    // Remove comma thousands separators, keep dot as decimal
                     cleaned = cleaned.replace(/,/g, '');
-                } else {
-                    // Comma comes after dot - comma is decimal point (European format)
-                    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
                 }
-            } else if (cleaned.includes(',')) {
-                // Only comma - could be thousands separator or decimal
+            } else if (cleaned.includes(',') && !cleaned.includes('.')) {
+                // Only comma - check if it's decimal separator (European format)
                 const parts = cleaned.split(',');
-                if (parts.length === 2 && parts[1].length <= 2) {
-                    // Likely decimal point (e.g., "123,45")
+                if (parts.length === 2 && parts[1].length === 2) {
+                    // Likely decimal: "123,45" → "123.45"
                     cleaned = cleaned.replace(',', '.');
                 } else {
-                    // Likely thousands separator (e.g., "1,234" or "1,234,567")
-                    cleaned = cleaned.replace(/,/g, '');
+                    // Likely thousands separator without decimals - invalid currency
+                    return null;
                 }
             }
             
-            // Handle missing decimal places (e.g., "1234" should be "12.34" if amount seems too large)
-            let amount = parseFloat(cleaned);
-            
-            // If amount is very large, might be missing decimal point
-            if (amount > 10000 && !cleaned.includes('.')) {
-                // Try interpreting last 2 digits as decimal places
-                const str = cleaned;
-                if (str.length >= 3) {
-                    const withDecimal = str.slice(0, -2) + '.' + str.slice(-2);
-                    const testAmount = parseFloat(withDecimal);
-                    if (testAmount < 10000) {
-                        amount = testAmount;
-                    }
-                }
+            // Strict currency format validation: must have exactly 2 decimal places
+            const currencyPattern = /^\d{1,6}\.\d{2}$/;
+            if (!currencyPattern.test(cleaned)) {
+                return null;
             }
             
-            // Validate amount is reasonable
-            if (isNaN(amount) || amount < 0.01 || amount > 100000) {
+            const amount = parseFloat(cleaned);
+            
+            // Validate amount is reasonable for UMHC expenses
+            if (isNaN(amount) || amount < 0.01 || amount > 50000) {
                 return null;
             }
             
@@ -512,6 +505,12 @@ class Expense365Parser {
         } catch (error) {
             return null;
         }
+    }
+
+    // Legacy parseAmount - kept for backward compatibility with other patterns
+    parseAmount(amountStr) {
+        // For Cash In/Out patterns, use strict currency parsing
+        return this.parseCurrencyAmount(amountStr);
     }
 
     // Calculate transaction confidence score

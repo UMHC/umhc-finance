@@ -435,8 +435,14 @@ class OCRProcessor {
             .substring(0, 100); // Limit length
     }
 
-    // Parse amount from string with OCR error handling
+    // Parse amount from string - now delegates to currency parsing for consistency
     parseAmount(amountStr) {
+        // For modern expense365 parsing, require proper currency format
+        return this.parseCurrencyAmount(amountStr);
+    }
+    
+    // Parse currency amount - requires exactly 2 decimal places (e.g., 123.45)
+    parseCurrencyAmount(amountStr) {
         try {
             if (!amountStr) return null;
             
@@ -449,7 +455,8 @@ class OCRProcessor {
                 .replace(/[G]/g, '6')     // G → 6
                 .replace(/[£$€\s]/g, ''); // Remove currency and whitespace
             
-            if (!cleaned || !/\d/.test(cleaned)) return null;
+            // Must have at least some digits and a decimal point
+            if (!cleaned || !/\d+\.\d/.test(cleaned)) return null;
             
             // Handle negative amounts (in parentheses or with minus)
             const isNegative = amountStr.includes('(') || 
@@ -460,43 +467,42 @@ class OCRProcessor {
             // Remove negative indicators
             cleaned = cleaned.replace(/[\(\)\-]/g, '');
             
-            // Handle decimal/comma issues
+            // Only keep digits, commas, dots
             cleaned = cleaned.replace(/[^0-9.,]/g, '');
             
-            // Smart comma/decimal handling
+            // Handle comma thousands separators
             if (cleaned.includes(',') && cleaned.includes('.')) {
                 const lastDotIndex = cleaned.lastIndexOf('.');
                 const lastCommaIndex = cleaned.lastIndexOf(',');
                 
                 if (lastDotIndex > lastCommaIndex) {
+                    // Remove comma thousands separators, keep dot as decimal
                     cleaned = cleaned.replace(/,/g, '');
-                } else {
-                    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
                 }
-            } else if (cleaned.includes(',')) {
+            } else if (cleaned.includes(',') && !cleaned.includes('.')) {
+                // Only comma - check if it's decimal separator
                 const parts = cleaned.split(',');
-                if (parts.length === 2 && parts[1].length <= 2) {
+                if (parts.length === 2 && parts[1].length === 2) {
+                    // Likely decimal: "123,45" → "123.45"
                     cleaned = cleaned.replace(',', '.');
                 } else {
-                    cleaned = cleaned.replace(/,/g, '');
+                    // Likely thousands separator without decimals - invalid
+                    return null;
                 }
             }
             
-            let amount = parseFloat(cleaned);
-            
-            // Handle missing decimal point for large numbers
-            if (amount > 10000 && !cleaned.includes('.')) {
-                const str = cleaned;
-                if (str.length >= 3) {
-                    const withDecimal = str.slice(0, -2) + '.' + str.slice(-2);
-                    const testAmount = parseFloat(withDecimal);
-                    if (testAmount < 10000) {
-                        amount = testAmount;
-                    }
-                }
+            // Strict currency format validation: must have exactly 2 decimal places
+            const currencyPattern = /^\d{1,6}\.\d{2}$/;
+            if (!currencyPattern.test(cleaned)) {
+                return null;
             }
             
-            if (isNaN(amount) || amount < 0.01 || amount > 100000) return null;
+            const amount = parseFloat(cleaned);
+            
+            // Validate amount is reasonable
+            if (isNaN(amount) || amount < 0.01 || amount > 50000) {
+                return null;
+            }
             
             return isNegative ? -amount : amount;
             
