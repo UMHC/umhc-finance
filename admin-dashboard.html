@@ -1031,6 +1031,24 @@
             }
         }
 
+        // Convert DD/MM/YYYY to YYYY-MM-DD format for HTML date inputs
+        function convertDateForInput(dateStr) {
+            if (!dateStr || typeof dateStr !== 'string') return '';
+            
+            // Check if already in YYYY-MM-DD format
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+            
+            // Convert DD/MM/YYYY to YYYY-MM-DD
+            const ddmmyyyy = dateStr.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+            if (ddmmyyyy) {
+                const [, day, month, year] = ddmmyyyy;
+                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+            
+            // Return empty if unable to parse
+            return '';
+        }
+
         // Display extracted data
         function displayExtractedData(transactions, metadata) {
             const dataDiv = document.getElementById('extractedData');
@@ -1068,7 +1086,7 @@
                         <div class="transaction-form">
                             <div class="form-group">
                                 <label>Date</label>
-                                <input type="date" value="${transaction.date}" data-field="date" data-index="${index}">
+                                <input type="date" value="${convertDateForInput(transaction.date)}" data-field="date" data-index="${index}">
                             </div>
                             <div class="form-group">
                                 <label>Description</label>

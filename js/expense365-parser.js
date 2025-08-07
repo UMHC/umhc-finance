@@ -16,11 +16,18 @@ class Expense365Parser {
     // Initialize all extraction patterns
     initializePatterns() {
         return {
+            // Dedicated Cash In/Out format: Date | Description | Cash In | Cash Out
+            cashInOutFormat: {
+                regex: /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s*\|\s*([^|]+?)\s*\|\s*([£$€]?\s*[\d,]*\.?\d*|\s*)\s*\|\s*([£$€]?\s*[\d,]*\.?\d*|\s*)/gm,
+                fields: ['date', 'description', 'cashIn', 'cashOut'],
+                priority: 1
+            },
+            
             // Standard expense365 format: Date | Description | Cash In | Cash Out
             expense365Standard: {
                 regex: /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s+([^|]+?)(?:\s+\|\s+)?(?:([£$€]?\s*[\d,]+\.?\d*))?\s*(?:\|\s*)?(?:([£$€]?\s*[\d,]+\.?\d*))?/gm,
                 fields: ['date', 'description', 'cashIn', 'cashOut'],
-                priority: 1
+                priority: 2
             },
             
             // Tabular format with clear columns
@@ -163,31 +170,55 @@ class Expense365Parser {
         }
     }
 
-    // Pre-process text for better pattern matching
+    // Pre-process text for better pattern matching with enhanced OCR cleanup
     preprocessText(text) {
         return text
             // Normalize line endings
             .replace(/\r\n/g, '\n')
             .replace(/\r/g, '\n')
             
-            // Fix common OCR issues
-            .replace(/\bO\b/g, '0') // O to 0 in numbers
-            .replace(/\bl\b/g, '1') // l to 1 in numbers
-            .replace(/\bS\b/g, '5') // S to 5 in numbers
+            // Fix common OCR character misrecognitions
+            .replace(/[Oo](?=\d)/g, '0')        // O before digit → 0
+            .replace(/(?<=\d)[Oo]/g, '0')       // O after digit → 0 
+            .replace(/[Il|](?=\d)/g, '1')       // I, l, | before digit → 1
+            .replace(/(?<=\d)[Il]/g, '1')       // I, l after digit → 1
+            .replace(/[S](?=\d)/g, '5')         // S before digit → 5
+            .replace(/(?<=\d)[S]/g, '5')        // S after digit → 5
+            .replace(/[Z](?=\d)/g, '2')         // Z before digit → 2
+            .replace(/(?<=\d)[Z]/g, '2')        // Z after digit → 2
+            .replace(/[G](?=\d)/g, '6')         // G before digit → 6
+            .replace(/(?<=\d)[G]/g, '6')        // G after digit → 6
             
             // Normalize currency symbols
             .replace(/[£€$]/g, '£')
             
-            // Clean up spacing around numbers
+            // Fix pipe separator variations (OCR may see | as other chars)
+            .replace(/[│∣║¦]/g, '|')            // Various pipe-like characters
+            .replace(/\s*\|\s*/g, ' | ')        // Normalize spacing around pipes
+            
+            // Clean up spacing around numbers and preserve decimal points
             .replace(/(\d)\s+(\d)/g, '$1$2')
             .replace(/(\d)\s*\.\s*(\d)/g, '$1.$2')
-            .replace(/(\d)\s*,\s*(\d)/g, '$1,$2')
+            .replace(/(\d)\s*,\s*(\d{3})/g, '$1,$2') // Thousands separator
+            .replace(/(\d)\s*,\s*(\d{1,2})\b/g, '$1.$2') // Decimal separator
             
-            // Fix date separators
+            // Fix date separators and normalize format
             .replace(/(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})/g, '$1/$2/$3')
             
-            // Remove excessive whitespace but preserve structure
-            .replace(/ {3,}/g, ' | '); // Convert multiple spaces to pipe separators
+            // Handle table structure - convert multiple spaces/tabs to pipes
+            .replace(/\t+/g, ' | ')             // Tabs to pipes
+            .replace(/ {3,}/g, ' | ')           // Multiple spaces to pipes
+            .replace(/\s*\|\s*\|\s*/g, ' | ')   // Multiple pipes to single pipe
+            
+            // Clean up pipe-separated structure for Cash In/Out format
+            .replace(/\|\s*£?\s*\|\s*/g, '| |') // Empty columns with currency symbols
+            .replace(/\|\s*-\s*\|/g, '| |')     // Dashes in empty columns
+            .replace(/\|\s*0\.00\s*\|/g, '| |') // Zero amounts in empty columns
+            
+            // Remove excessive whitespace while preserving structure
+            .replace(/^\s+/gm, '')              // Leading whitespace on lines
+            .replace(/\s+$/gm, '')              // Trailing whitespace on lines
+            .replace(/\n{3,}/g, '\n\n');       // Multiple line breaks
     }
 
     // Extract matches using a specific pattern
@@ -258,6 +289,7 @@ class Expense365Parser {
                         if (cashIn !== null && cashIn > 0) {
                             transaction.amount = cashIn;
                             transaction.type = 'Income';
+                            transaction.cashInValue = cashIn;
                         }
                         break;
                         
@@ -266,6 +298,7 @@ class Expense365Parser {
                         if (cashOut !== null && cashOut > 0) {
                             transaction.amount = cashOut;
                             transaction.type = 'Expense';
+                            transaction.cashOutValue = cashOut;
                         }
                         break;
                         
@@ -274,6 +307,30 @@ class Expense365Parser {
                         break;
                 }
             }
+
+            // Handle Cash In/Out logic - determine correct amount and type
+            if (transaction.cashInValue && transaction.cashOutValue) {
+                // Both columns have values - this is unusual, prefer the larger amount
+                if (transaction.cashInValue >= transaction.cashOutValue) {
+                    transaction.amount = transaction.cashInValue;
+                    transaction.type = 'Income';
+                } else {
+                    transaction.amount = transaction.cashOutValue;
+                    transaction.type = 'Expense';
+                }
+            } else if (transaction.cashInValue && !transaction.cashOutValue) {
+                // Only Cash In has value - Income
+                transaction.amount = transaction.cashInValue;
+                transaction.type = 'Income';
+            } else if (!transaction.cashInValue && transaction.cashOutValue) {
+                // Only Cash Out has value - Expense
+                transaction.amount = transaction.cashOutValue;
+                transaction.type = 'Expense';
+            }
+            
+            // Clean up temporary fields
+            delete transaction.cashInValue;
+            delete transaction.cashOutValue;
 
             // Auto-categorize if not already set by pattern
             if (transaction.category === 'Uncategorized') {
@@ -294,33 +351,57 @@ class Expense365Parser {
         }
     }
 
-    // Normalize date to DD/MM/YYYY format
+    // Normalize date to DD/MM/YYYY format with enhanced OCR error handling
     normalizeDate(dateStr) {
         try {
-            // Handle various separators
-            const cleanDate = dateStr.replace(/[-\.]/g, '/');
+            if (!dateStr) return null;
+            
+            // Clean OCR artifacts and normalize separators
+            let cleanDate = dateStr.toString().trim()
+                .replace(/[Oo]/g, '0')  // O → 0
+                .replace(/[Il|]/g, '1') // I, l, | → 1  
+                .replace(/[S]/g, '5')   // S → 5
+                .replace(/[Z]/g, '2')   // Z → 2
+                .replace(/[G]/g, '6')   // G → 6
+                .replace(/\s+/g, '')    // Remove all whitespace
+                .replace(/[-\.]/g, '/') // Normalize separators
+                .replace(/[^\d\/]/g, ''); // Remove non-digit, non-slash characters
+            
             const parts = cleanDate.split('/');
             
             if (parts.length !== 3) return null;
             
             let [day, month, year] = parts.map(p => parseInt(p.trim()));
             
+            // Handle invalid parse results
+            if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+            
             // Handle 2-digit years
             if (year < 100) {
                 year = year > 50 ? 1900 + year : 2000 + year;
             }
             
-            // Validate ranges
+            // Swap day/month if month > 12 but day <= 12 (common OCR error)
+            if (month > 12 && day <= 12) {
+                [day, month] = [month, day];
+            }
+            
+            // Validate date ranges
             if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100) {
                 return null;
             }
             
-            // Check if date is reasonable (not too far in future)
-            const date = new Date(year, month - 1, day);
-            const now = new Date();
-            const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+            // Additional validation: check if date is valid (e.g., not Feb 30)
+            const testDate = new Date(year, month - 1, day);
+            if (testDate.getDate() !== day || testDate.getMonth() !== month - 1) {
+                return null;
+            }
             
-            if (date > oneYearFromNow) {
+            // Check if date is reasonable (not too far in future)
+            const now = new Date();
+            const twoYearsFromNow = new Date(now.getFullYear() + 2, now.getMonth(), now.getDate());
+            
+            if (testDate > twoYearsFromNow) {
                 return null;
             }
             
@@ -351,41 +432,78 @@ class Expense365Parser {
             .substring(0, 80); // Limit length
     }
 
-    // Parse amount from string with enhanced logic
+    // Parse amount from string with enhanced logic and OCR error handling
     parseAmount(amountStr) {
         if (!amountStr) return null;
         
         try {
-            // Remove whitespace and currency symbols
-            let cleaned = amountStr.replace(/[£$€\s]/g, '');
+            // Clean OCR artifacts first
+            let cleaned = amountStr.toString().trim()
+                .replace(/[Oo]/g, '0')    // O → 0
+                .replace(/[Il]/g, '1')    // I, l → 1
+                .replace(/[S]/g, '5')     // S → 5
+                .replace(/[Z]/g, '2')     // Z → 2  
+                .replace(/[G]/g, '6')     // G → 6
+                .replace(/[£$€\s]/g, ''); // Remove currency and whitespace
             
-            // Handle empty or non-numeric strings
+            // Handle empty or non-numeric strings after cleaning
             if (!cleaned || !/\d/.test(cleaned)) return null;
             
             // Handle negative indicators
             const isNegative = /[\(\-]/.test(amountStr) || 
                               amountStr.toLowerCase().includes('out') ||
-                              amountStr.toLowerCase().includes('debit');
+                              amountStr.toLowerCase().includes('debit') ||
+                              amountStr.toLowerCase().includes('cr');
             
             // Remove negative indicators
             cleaned = cleaned.replace(/[\(\)\-]/g, '');
             
-            // Handle comma thousands separators
-            if (cleaned.includes(',')) {
-                // Validate comma placement (every 3 digits from right)
-                const commaPattern = /^\d{1,3}(,\d{3})*(\.\d{2})?$/;
-                if (commaPattern.test(cleaned)) {
+            // Handle decimal point variations (OCR might see . as other chars)
+            cleaned = cleaned.replace(/[^0-9.,]/g, ''); // Only keep digits, commas, dots
+            
+            // Handle comma thousands separators vs decimal points
+            if (cleaned.includes(',') && cleaned.includes('.')) {
+                // Both comma and dot - assume comma is thousands separator
+                const lastDotIndex = cleaned.lastIndexOf('.');
+                const lastCommaIndex = cleaned.lastIndexOf(',');
+                
+                if (lastDotIndex > lastCommaIndex) {
+                    // Dot comes after comma - dot is decimal point
                     cleaned = cleaned.replace(/,/g, '');
                 } else {
-                    // Invalid comma usage, try to fix
+                    // Comma comes after dot - comma is decimal point (European format)
+                    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+                }
+            } else if (cleaned.includes(',')) {
+                // Only comma - could be thousands separator or decimal
+                const parts = cleaned.split(',');
+                if (parts.length === 2 && parts[1].length <= 2) {
+                    // Likely decimal point (e.g., "123,45")
+                    cleaned = cleaned.replace(',', '.');
+                } else {
+                    // Likely thousands separator (e.g., "1,234" or "1,234,567")
                     cleaned = cleaned.replace(/,/g, '');
                 }
             }
             
-            const amount = parseFloat(cleaned);
+            // Handle missing decimal places (e.g., "1234" should be "12.34" if amount seems too large)
+            let amount = parseFloat(cleaned);
+            
+            // If amount is very large, might be missing decimal point
+            if (amount > 10000 && !cleaned.includes('.')) {
+                // Try interpreting last 2 digits as decimal places
+                const str = cleaned;
+                if (str.length >= 3) {
+                    const withDecimal = str.slice(0, -2) + '.' + str.slice(-2);
+                    const testAmount = parseFloat(withDecimal);
+                    if (testAmount < 10000) {
+                        amount = testAmount;
+                    }
+                }
+            }
             
             // Validate amount is reasonable
-            if (isNaN(amount) || amount <= 0 || amount > 100000) {
+            if (isNaN(amount) || amount < 0.01 || amount > 100000) {
                 return null;
             }
             

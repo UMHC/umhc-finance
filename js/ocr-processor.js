@@ -364,24 +364,57 @@ class OCRProcessor {
         }
     }
 
-    // Normalize date format
+    // Normalize date format with enhanced OCR error handling
     normalizeDate(dateStr) {
         try {
-            // Handle various date formats: DD/MM/YYYY, DD-MM-YYYY, etc.
-            const cleanDate = dateStr.replace(/[-\.]/g, '/');
+            if (!dateStr) return null;
+            
+            // Clean OCR artifacts and normalize separators  
+            let cleanDate = dateStr.toString().trim()
+                .replace(/[Oo]/g, '0')  // O → 0
+                .replace(/[Il|]/g, '1') // I, l, | → 1
+                .replace(/[S]/g, '5')   // S → 5  
+                .replace(/[Z]/g, '2')   // Z → 2
+                .replace(/[G]/g, '6')   // G → 6
+                .replace(/\s+/g, '')    // Remove all whitespace
+                .replace(/[-\.]/g, '/') // Normalize separators
+                .replace(/[^\d\/]/g, ''); // Remove non-digit, non-slash characters
+            
             const parts = cleanDate.split('/');
             
             if (parts.length !== 3) return null;
             
             let [day, month, year] = parts.map(p => parseInt(p));
             
+            // Handle invalid parse results
+            if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+            
             // Handle 2-digit years
             if (year < 100) {
                 year = year > 50 ? 1900 + year : 2000 + year;
             }
             
+            // Swap day/month if month > 12 but day <= 12 (common OCR error)
+            if (month > 12 && day <= 12) {
+                [day, month] = [month, day];
+            }
+            
             // Validate date components
             if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100) {
+                return null;
+            }
+            
+            // Additional validation: check if date is actually valid
+            const testDate = new Date(year, month - 1, day);
+            if (testDate.getDate() !== day || testDate.getMonth() !== month - 1) {
+                return null;
+            }
+            
+            // Check if date is reasonable (not too far in future)
+            const now = new Date();
+            const twoYearsFromNow = new Date(now.getFullYear() + 2, now.getMonth(), now.getDate());
+            
+            if (testDate > twoYearsFromNow) {
                 return null;
             }
             
@@ -402,18 +435,68 @@ class OCRProcessor {
             .substring(0, 100); // Limit length
     }
 
-    // Parse amount from string
+    // Parse amount from string with OCR error handling
     parseAmount(amountStr) {
         try {
-            // Remove currency symbols and spaces
-            const cleaned = amountStr.replace(/[£$€,\s]/g, '');
+            if (!amountStr) return null;
+            
+            // Clean OCR artifacts first
+            let cleaned = amountStr.toString().trim()
+                .replace(/[Oo]/g, '0')    // O → 0
+                .replace(/[Il]/g, '1')    // I, l → 1
+                .replace(/[S]/g, '5')     // S → 5
+                .replace(/[Z]/g, '2')     // Z → 2
+                .replace(/[G]/g, '6')     // G → 6
+                .replace(/[£$€\s]/g, ''); // Remove currency and whitespace
+            
+            if (!cleaned || !/\d/.test(cleaned)) return null;
             
             // Handle negative amounts (in parentheses or with minus)
-            const isNegative = amountStr.includes('(') || amountStr.includes('-') || amountStr.toLowerCase().includes('out');
+            const isNegative = amountStr.includes('(') || 
+                              amountStr.includes('-') || 
+                              amountStr.toLowerCase().includes('out') ||
+                              amountStr.toLowerCase().includes('debit');
             
-            const amount = parseFloat(cleaned);
+            // Remove negative indicators
+            cleaned = cleaned.replace(/[\(\)\-]/g, '');
             
-            if (isNaN(amount)) return null;
+            // Handle decimal/comma issues
+            cleaned = cleaned.replace(/[^0-9.,]/g, '');
+            
+            // Smart comma/decimal handling
+            if (cleaned.includes(',') && cleaned.includes('.')) {
+                const lastDotIndex = cleaned.lastIndexOf('.');
+                const lastCommaIndex = cleaned.lastIndexOf(',');
+                
+                if (lastDotIndex > lastCommaIndex) {
+                    cleaned = cleaned.replace(/,/g, '');
+                } else {
+                    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+                }
+            } else if (cleaned.includes(',')) {
+                const parts = cleaned.split(',');
+                if (parts.length === 2 && parts[1].length <= 2) {
+                    cleaned = cleaned.replace(',', '.');
+                } else {
+                    cleaned = cleaned.replace(/,/g, '');
+                }
+            }
+            
+            let amount = parseFloat(cleaned);
+            
+            // Handle missing decimal point for large numbers
+            if (amount > 10000 && !cleaned.includes('.')) {
+                const str = cleaned;
+                if (str.length >= 3) {
+                    const withDecimal = str.slice(0, -2) + '.' + str.slice(-2);
+                    const testAmount = parseFloat(withDecimal);
+                    if (testAmount < 10000) {
+                        amount = testAmount;
+                    }
+                }
+            }
+            
+            if (isNaN(amount) || amount < 0.01 || amount > 100000) return null;
             
             return isNegative ? -amount : amount;
             
