@@ -1,78 +1,12 @@
-// js/ocr-processor.js - Free OCR processing using Tesseract.js + PDF.js
-// Replaces expensive Claude API with open-source alternatives
+// js/ocr-processor.js - PDF Spatial Text Extraction
+// Processes PDFs using PDF.js with coordinate-based column detection
 
-class OCRProcessor {
+class PDFSpatialProcessor {
     constructor() {
-        this.tesseractWorker = null;
-        this.isInitialized = false;
         this.currentProcessingId = 0;
         this.progressCallback = null;
         
-        // OCR.Space free API as backup (500 requests/month)
-        this.ocrSpaceEndpoint = 'https://api.ocr.space/parse/image';
-        this.ocrSpaceApiKey = null; // Optional - user can set for backup processing
-        
-        Utils.log('info', 'OCRProcessor initialized with free open-source processing');
-    }
-
-    // Initialize Tesseract.js worker
-    async initializeTesseract() {
-        if (this.isInitialized) return true;
-        
-        try {
-            this.updateProgress('Initializing OCR engine...', 0);
-            
-            // Load Tesseract.js if not already loaded
-            if (typeof Tesseract === 'undefined') {
-                await this.loadTesseractJS();
-            }
-            
-            // Create worker with financial document optimizations
-            this.tesseractWorker = await Tesseract.createWorker('eng', 1, {
-                logger: (m) => {
-                    if (m.status === 'recognizing text') {
-                        const progress = Math.round(m.progress * 100);
-                        this.updateProgress(`OCR processing: ${progress}%`, 0.3 + (m.progress * 0.6));
-                    }
-                }
-            });
-
-            // Optimize for financial documents
-            await this.tesseractWorker.setParameters({
-                tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,£$€-+/(): \n\r',
-                preserve_interword_spaces: '1',
-                tessedit_pageseg_mode: '6' // Assume uniform block of text
-            });
-            
-            this.isInitialized = true;
-            this.updateProgress('OCR engine ready', 0.1);
-            
-            Utils.log('info', 'Tesseract.js initialized successfully');
-            return true;
-            
-        } catch (error) {
-            Utils.log('error', 'Failed to initialize Tesseract.js', error);
-            throw new Error(`OCR initialization failed: ${error.message}`);
-        }
-    }
-
-    // Load Tesseract.js library dynamically
-    async loadTesseractJS() {
-        return new Promise((resolve, reject) => {
-            if (typeof Tesseract !== 'undefined') {
-                resolve();
-                return;
-            }
-
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-            script.onload = () => {
-                Utils.log('info', 'Tesseract.js library loaded');
-                resolve();
-            };
-            script.onerror = () => reject(new Error('Failed to load Tesseract.js library'));
-            document.head.appendChild(script);
-        });
+        Utils.log('info', 'PDF Spatial Processor initialized for PDF-only processing');
     }
 
     // Set progress callback for UI updates
@@ -88,27 +22,22 @@ class OCRProcessor {
         console.log(`OCR Progress: ${message}${progress !== null ? ` (${Math.round(progress * 100)}%)` : ''}`);
     }
 
-    // Main processing function
+    // Main processing function - PDF only
     async processDocument(file) {
         const processingId = ++this.currentProcessingId;
         
         try {
-            this.updateProgress('Starting document processing...', 0);
+            this.updateProgress('Starting PDF spatial processing...', 0);
             
-            // Initialize OCR if needed
-            await this.initializeTesseract();
-            
-            // Process based on file type
+            // Only process PDF files
             if (file.type === 'application/pdf') {
                 return await this.processPDF(file, processingId);
-            } else if (file.type.startsWith('image/')) {
-                return await this.processImage(file, processingId);
             } else {
-                throw new Error('Unsupported file type. Please upload PDF or image files.');
+                throw new Error('Only PDF files are supported. Please upload a PDF file.');
             }
             
         } catch (error) {
-            Utils.log('error', 'Document processing failed', error);
+            Utils.log('error', 'PDF processing failed', error);
             throw error;
         }
     }
@@ -145,45 +74,24 @@ class OCRProcessor {
                 
                 const page = await pdf.getPage(pageNum);
                 
-                // Try text extraction with spatial data first (faster for text-based PDFs)
+                // Extract spatial text data from PDF
                 const textContent = await page.getTextContent();
                 const spatialText = this.extractSpatialText(textContent, pageNum);
-                let pageText = spatialText.plainText;
                 
-                // If text extraction gives poor results, use OCR on rendered page
-                if (this.isTextExtractionPoor(pageText)) {
-                    this.updateProgress(`OCR scanning page ${pageNum}...`, baseProgress + 0.1);
-                    
-                    // Render page to canvas for OCR
-                    const viewport = page.getViewport({scale: 2.0}); // Higher scale for better OCR
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    
-                    await page.render({canvasContext: context, viewport: viewport}).promise;
-                    
-                    // Run OCR on the canvas
-                    const ocrResult = await this.tesseractWorker.recognize(canvas);
-                    pageText = ocrResult.data.text;
+                if (!spatialText || spatialText.items.length === 0) {
+                    throw new Error(`Page ${pageNum} contains no extractable text with coordinate data. This PDF may be image-based or corrupted.`);
                 }
                 
-                fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
+                fullText += `\n--- Page ${pageNum} ---\n${spatialText.plainText}\n`;
                 
-                // Extract transactions from this page with spatial data
-                let pageTransactions;
-                if (spatialText && spatialText.items.length > 0) {
-                    // Use spatial extraction for better column detection
-                    const result = this.extractTransactionsWithSpatial(spatialText, pageNum, masterColumnInfo);
-                    pageTransactions = result.transactions;
-                    
-                    // Update master column info if this page provided better data
-                    if (result.columnInfo && result.columnInfo.hasValidStructure) {
-                        masterColumnInfo = result.columnInfo;
-                    }
-                } else {
-                    // Fallback to text-based extraction
-                    pageTransactions = this.extractTransactionsFromText(pageText, pageNum);
+                // Always use spatial extraction
+                this.updateProgress(`Analyzing spatial layout on page ${pageNum}...`, baseProgress + 0.1);
+                const result = this.extractTransactionsWithSpatial(spatialText, pageNum, masterColumnInfo);
+                const pageTransactions = result.transactions;
+                
+                // Update master column info if this page provided better data
+                if (result.columnInfo && result.columnInfo.hasValidStructure) {
+                    masterColumnInfo = result.columnInfo;
                 }
                 allTransactions = allTransactions.concat(pageTransactions);
             }
@@ -216,45 +124,6 @@ class OCRProcessor {
         }
     }
 
-    // Process image files
-    async processImage(file, processingId) {
-        this.updateProgress('Processing image with OCR...', 0.2);
-        
-        try {
-            // Run Tesseract OCR on the image
-            const result = await this.tesseractWorker.recognize(file);
-            const extractedText = result.data.text;
-            
-            this.updateProgress('Extracting transaction data...', 0.8);
-            
-            // Extract transactions from OCR text
-            const transactions = this.extractTransactionsFromText(extractedText, 1);
-            
-            const processedResult = {
-                fullText: extractedText,
-                transactions: transactions,
-                summary: {
-                    totalTransactions: transactions.length,
-                    processingMethod: 'Tesseract.js OCR (Image)',
-                    fileName: file.name,
-                    confidence: result.data.confidence
-                }
-            };
-            
-            this.updateProgress(`Extracted ${transactions.length} transactions`, 1.0);
-            
-            Utils.log('info', 'Image processing completed', {
-                transactions: transactions.length,
-                confidence: result.data.confidence
-            });
-            
-            return processedResult;
-            
-        } catch (error) {
-            Utils.log('error', 'Image processing failed', error);
-            throw new Error(`Image processing failed: ${error.message}`);
-        }
-    }
 
     // Extract text with spatial coordinates from PDF.js textContent
     extractSpatialText(textContent, pageNum) {
@@ -308,11 +177,8 @@ class OCRProcessor {
             }
             
             if (!columnInfo.hasValidStructure) {
-                Utils.log('info', `No valid column structure detected on page ${pageNum}, falling back to text extraction`);
-                return {
-                    transactions: this.extractTransactionsFromText(spatialText.plainText, pageNum),
-                    columnInfo: null
-                };
+                Utils.log('error', `No valid column structure detected on page ${pageNum}. This PDF may not contain transaction tables with proper column layout.`);
+                throw new Error(`Page ${pageNum} does not contain a recognizable transaction table structure. Please ensure the PDF contains properly formatted financial data with columns.`);
             }
             
             // Group items into rows based on Y coordinate
@@ -335,11 +201,8 @@ class OCRProcessor {
             };
             
         } catch (error) {
-            Utils.log('error', 'Spatial transaction extraction failed, falling back', error);
-            return {
-                transactions: this.extractTransactionsFromText(spatialText.plainText, pageNum),
-                columnInfo: null
-            };
+            Utils.log('error', 'Spatial transaction extraction failed', error);
+            throw error; // No fallback - fail clearly
         }
     }
     
@@ -397,29 +260,40 @@ class OCRProcessor {
         };
     }
     
-    // Infer column positions from currency amounts in the data
+    // Infer column positions from currency amounts and text positioning
     inferColumnPositions(items) {
         const currencyPattern = /^\d{1,6}\.\d{2}$/;
+        
+        // Find all currency amounts
         const amounts = items.filter(item => 
             currencyPattern.test(item.text.replace(/[£$€,\s]/g, ''))
         );
         
-        if (amounts.length < 2) return { cashIn: null, cashOut: null };
+        if (amounts.length === 0) return { cashIn: null, cashOut: null };
         
-        // Group amounts by X position (within 20 units)
+        // Group amounts by X position (within 30 units for more flexibility)
         const xGroups = {};
         for (const amount of amounts) {
-            const roundedX = Math.round(amount.x / 20) * 20; // Group by 20-unit buckets
+            const roundedX = Math.round(amount.x / 30) * 30; // Group by 30-unit buckets
             if (!xGroups[roundedX]) xGroups[roundedX] = [];
             xGroups[roundedX].push(amount);
         }
         
+        // Get unique X positions sorted left to right
         const xPositions = Object.keys(xGroups).map(Number).sort((a, b) => a - b);
         
-        if (xPositions.length >= 2) {
-            // Assume left column is Cash In, right column is Cash Out
+        Utils.log('debug', 'Found amount column positions', { xPositions, groupCount: xPositions.length });
+        
+        if (xPositions.length === 1) {
+            // Only one column of amounts - assume it's Cash Out (expenses are more common)
             return {
-                cashIn: xPositions[xPositions.length - 2], // Second from right
+                cashIn: null,
+                cashOut: xPositions[0]
+            };
+        } else if (xPositions.length >= 2) {
+            // Two or more columns - Cash In (left), Cash Out (right)
+            return {
+                cashIn: xPositions[xPositions.length - 2],  // Second from right
                 cashOut: xPositions[xPositions.length - 1]  // Rightmost
             };
         }
@@ -542,108 +416,6 @@ class OCRProcessor {
         });
     }
 
-    // Check if text extraction is poor quality
-    isTextExtractionPoor(text) {
-        // Indicators of poor text extraction
-        const wordCount = text.split(/\s+/).length;
-        const hasNumbers = /\d/.test(text);
-        const hasProperSpacing = text.includes(' ');
-        const tooShort = wordCount < 10;
-        const tooManySpecialChars = (text.match(/[^\w\s]/g) || []).length > text.length * 0.3;
-        
-        return tooShort || !hasNumbers || !hasProperSpacing || tooManySpecialChars;
-    }
-
-    // Extract transactions from text using pattern matching
-    extractTransactionsFromText(text, pageNumber = 1) {
-        const transactions = [];
-        
-        try {
-            // Common patterns for expense365/financial statements
-            const patterns = {
-                // Pattern 1: DD/MM/YYYY Description Amount
-                standard: /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+(.+?)\s+([\d,]+\.?\d*)/gm,
-                
-                // Pattern 2: Date with description and amount in separate columns
-                tabular: /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+([^\d£$€]+)\s+([£$€]?[\d,]+\.?\d*)/gm,
-                
-                // Pattern 3: Complex format with reference numbers
-                withRef: /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+(.+?)\s+\((\d+)\)\s+([£$€]?[\d,]+\.?\d*)/gm
-            };
-            
-            // Try each pattern
-            for (const [patternName, regex] of Object.entries(patterns)) {
-                let match;
-                while ((match = regex.exec(text)) !== null) {
-                    const transaction = this.parseTransactionMatch(match, patternName, pageNumber);
-                    if (transaction && this.isValidTransaction(transaction)) {
-                        transactions.push(transaction);
-                    }
-                }
-            }
-            
-            // Remove duplicates based on date + description similarity
-            return this.removeDuplicateTransactions(transactions);
-            
-        } catch (error) {
-            Utils.log('error', 'Transaction extraction failed', error);
-            return [];
-        }
-    }
-
-    // Parse a regex match into a transaction object
-    parseTransactionMatch(match, patternName, pageNumber) {
-        try {
-            let date, description, amount, reference = '';
-            
-            switch (patternName) {
-                case 'standard':
-                    [, date, description, amount] = match;
-                    break;
-                case 'tabular':
-                    [, date, description, amount] = match;
-                    break;
-                case 'withRef':
-                    [, date, description, reference, amount] = match;
-                    break;
-            }
-            
-            // Clean and normalize data
-            date = this.normalizeDate(date);
-            description = this.cleanDescription(description);
-            amount = this.parseAmount(amount);
-            
-            if (!date || !description || amount === null) {
-                return null;
-            }
-            
-            // Determine transaction type
-            const type = amount > 0 ? 'Income' : 'Expense';
-            
-            // Auto-categorize based on description
-            const category = this.autoCategorizeFree(description);
-            
-            // Calculate confidence based on data quality
-            const confidence = this.calculateConfidence(match[0], description, amount);
-            
-            return {
-                date: date,
-                description: description,
-                amount: Math.abs(amount),
-                type: type,
-                category: category,
-                event: this.extractEvent(description),
-                reference: reference || '',
-                confidence: confidence,
-                page: pageNumber,
-                rawMatch: match[0]
-            };
-            
-        } catch (error) {
-            Utils.log('warn', 'Failed to parse transaction match', error);
-            return null;
-        }
-    }
 
     // Normalize date format with enhanced OCR error handling
     normalizeDate(dateStr) {
@@ -859,8 +631,7 @@ class OCRProcessor {
                transaction.description && 
                transaction.description.length > 2 &&
                transaction.amount !== null && 
-               transaction.amount > 0 &&
-               transaction.confidence >= 0.3;
+               transaction.amount > 0;
     }
 
     // Remove duplicate transactions
@@ -955,11 +726,11 @@ class OCRProcessor {
     }
 }
 
-// Create global OCR processor instance
-const ocrProcessor = new OCRProcessor();
+// Create global PDF spatial processor instance
+const ocrProcessor = new PDFSpatialProcessor();
 
 // Export for use in other files
-window.OCRProcessor = OCRProcessor;
+window.PDFSpatialProcessor = PDFSpatialProcessor;
 window.ocrProcessor = ocrProcessor;
 
-Utils.log('info', 'Free OCR processor loaded - Tesseract.js + PDF.js + OCR.Space backup');
+Utils.log('info', 'PDF Spatial Processor loaded - PDF.js coordinate-based extraction');

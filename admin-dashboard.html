@@ -524,11 +524,11 @@
                      ondragleave="handleDragLeave(event)">
                     <div class="upload-icon">📄</div>
                     <div class="upload-text" id="uploadText">Drop files here or click to upload</div>
-                    <div class="upload-hint" id="uploadHint">Supports: PDF, PNG, JPG (max 10MB) • Completely free OCR processing</div>
+                    <div class="upload-hint" id="uploadHint">Supports: PDF files only (max 10MB) • Advanced spatial text extraction</div>
                     <input type="file" 
                            id="fileInput" 
                            class="file-input" 
-                           accept=".pdf,.png,.jpg,.jpeg" 
+                           accept=".pdf" 
                            onchange="handleFileSelect(event)" 
                            multiple>
                 </div>
@@ -660,7 +660,6 @@
     <script src="js/ui-components.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/ocr-processor.js"></script>
-    <script src="js/expense365-parser.js"></script>
 
     <!-- Admin Dashboard Script -->
     <script>
@@ -894,52 +893,49 @@
                     }
                 }
                 
-                updateProcessingStep('extract', 'complete', 'OCR processing complete');
+                updateProcessingStep('extract', 'complete', 'Spatial processing complete');
                 
-                // Step 3: Parse transactions with expense365 parser
-                updateProcessingStep('ai', 'active', 'Extracting transactions with UMHC patterns...');
+                // Step 3: Results are already processed by spatial extraction
+                updateProcessingStep('ai', 'complete', 'Transaction extraction complete');
                 
-                const parser = new Expense365Parser();
-                const parseResult = parser.parseDocument(result.fullText, file.name);
-                
-                // Combine OCR and parser results
+                // Use spatial extraction results directly - no additional parsing needed
                 const finalResult = {
-                    transactions: parseResult.transactions,
+                    transactions: result.transactions,
                     summary: {
                         ...result.summary,
-                        ...parseResult.parsingStats,
-                        totalTransactions: parseResult.transactions.length
+                        totalTransactions: result.transactions.length,
+                        processingMethod: 'PDF Spatial Extraction'
                     },
-                    fullText: result.fullText,
-                    parseStats: parseResult.parsingStats
+                    fullText: result.fullText
                 };
                 
-                updateProcessingStep('ai', 'complete', `Extracted ${parseResult.transactions.length} transactions`);
+                updateProcessingStep('ai', 'complete', `Extracted ${result.transactions.length} transactions`);
                 
                 // Show debug info if enabled
                 if (debugMode) {
-                    showOCRDebugPanel(result.fullText, parseResult);
+                    showSpatialDebugPanel(result.fullText, finalResult);
+                    console.log(`Spatial extraction: ${result.transactions.length} transactions found`);
                 }
                 
                 // Step 4: Display results
                 updateProcessingStep('review', 'active', 'Preparing results for review...');
                 
-                extractedTransactions = parseResult.transactions;
-                updateProcessingStep('review', 'complete', `${parseResult.transactions.length} transactions ready for review`);
+                extractedTransactions = result.transactions;
+                updateProcessingStep('review', 'complete', `${result.transactions.length} transactions ready for review`);
                 
-                if (parseResult.transactions.length === 0) {
+                if (result.transactions.length === 0) {
                     alert('⚠️ No transactions were extracted. This might indicate:\n\n' +
-                        '1. The document format is not recognized by our patterns\n' +
-                        '2. The OCR quality is too low\n' +
-                        '3. The document doesn\'t contain transaction data\n\n' +
-                        'Check the Debug Panel to see the raw OCR text.');
+                        '1. The PDF does not contain recognizable table structure\n' +
+                        '2. The document is image-based without text data\n' +
+                        '3. The table columns are not in the expected format\n\n' +
+                        'Check the Debug Panel to see the extracted text.');
                 } else {
-                    // Show confidence breakdown
-                    const stats = parseResult.parsingStats.confidence;
-                    console.log(`Confidence breakdown: High: ${stats.high}, Medium: ${stats.medium}, Low: ${stats.low}`);
+                    // Show spatial extraction results
+                    const spatialCount = result.transactions.filter(t => t.extractionMethod === 'spatial').length;
+                    console.log(`Spatial extraction results: ${spatialCount} transactions extracted using coordinate analysis`);
                 }
                 
-                displayExtractedData(parseResult.transactions, finalResult.summary);
+                displayExtractedData(result.transactions, finalResult.summary);
                 
             } catch (error) {
                 console.error('OCR processing error:', error);
