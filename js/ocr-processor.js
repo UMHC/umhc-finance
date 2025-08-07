@@ -131,6 +131,7 @@ class OCRProcessor {
             let fullText = '';
             let allTransactions = [];
             const maxPages = Math.min(pdf.numPages, 10); // Limit to 10 pages for performance
+            let masterColumnInfo = null; // Store column info for consistency across pages
             
             // Process each page
             for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
@@ -144,9 +145,10 @@ class OCRProcessor {
                 
                 const page = await pdf.getPage(pageNum);
                 
-                // Try text extraction first (faster for text-based PDFs)
+                // Try text extraction with spatial data first (faster for text-based PDFs)
                 const textContent = await page.getTextContent();
-                let pageText = textContent.items.map(item => item.str).join(' ');
+                const spatialText = this.extractSpatialText(textContent, pageNum);
+                let pageText = spatialText.plainText;
                 
                 // If text extraction gives poor results, use OCR on rendered page
                 if (this.isTextExtractionPoor(pageText)) {
@@ -168,8 +170,21 @@ class OCRProcessor {
                 
                 fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
                 
-                // Extract transactions from this page
-                const pageTransactions = this.extractTransactionsFromText(pageText, pageNum);
+                // Extract transactions from this page with spatial data
+                let pageTransactions;
+                if (spatialText && spatialText.items.length > 0) {
+                    // Use spatial extraction for better column detection
+                    const result = this.extractTransactionsWithSpatial(spatialText, pageNum, masterColumnInfo);
+                    pageTransactions = result.transactions;
+                    
+                    // Update master column info if this page provided better data
+                    if (result.columnInfo && result.columnInfo.hasValidStructure) {
+                        masterColumnInfo = result.columnInfo;
+                    }
+                } else {
+                    // Fallback to text-based extraction
+                    pageTransactions = this.extractTransactionsFromText(pageText, pageNum);
+                }
                 allTransactions = allTransactions.concat(pageTransactions);
             }
             
@@ -239,6 +254,272 @@ class OCRProcessor {
             Utils.log('error', 'Image processing failed', error);
             throw new Error(`Image processing failed: ${error.message}`);
         }
+    }
+
+    // Extract text with spatial coordinates from PDF.js textContent
+    extractSpatialText(textContent, pageNum) {
+        try {
+            const items = textContent.items.map(item => ({
+                text: item.str,
+                x: item.transform[4], // X coordinate
+                y: item.transform[5], // Y coordinate
+                width: item.width,
+                height: item.height,
+                fontSize: item.transform[0] // Font size (scale factor)
+            }));
+            
+            // Sort items by Y coordinate (top to bottom), then X coordinate (left to right)
+            items.sort((a, b) => {
+                const yDiff = Math.abs(a.y - b.y);
+                if (yDiff < 5) { // Same line (within 5 units)
+                    return a.x - b.x; // Sort by X (left to right)
+                }
+                return b.y - a.y; // Sort by Y (top to bottom, PDF coordinates are inverted)
+            });
+            
+            // Generate plain text for backward compatibility
+            const plainText = items.map(item => item.text).join(' ');
+            
+            Utils.log('debug', `Extracted ${items.length} spatial text items from page ${pageNum}`);
+            
+            return {
+                items: items,
+                plainText: plainText,
+                pageNum: pageNum
+            };
+            
+        } catch (error) {
+            Utils.log('error', 'Failed to extract spatial text', error);
+            return {
+                items: [],
+                plainText: textContent.items.map(item => item.str).join(' '),
+                pageNum: pageNum
+            };
+        }
+    }
+    
+    // Extract transactions using spatial positioning data
+    extractTransactionsWithSpatial(spatialText, pageNum, masterColumnInfo = null) {
+        try {
+            // Use master column info if available, otherwise detect from this page
+            let columnInfo = masterColumnInfo;
+            if (!columnInfo || !columnInfo.hasValidStructure) {
+                columnInfo = this.detectColumnStructure(spatialText.items);
+            }
+            
+            if (!columnInfo.hasValidStructure) {
+                Utils.log('info', `No valid column structure detected on page ${pageNum}, falling back to text extraction`);
+                return {
+                    transactions: this.extractTransactionsFromText(spatialText.plainText, pageNum),
+                    columnInfo: null
+                };
+            }
+            
+            // Group items into rows based on Y coordinate
+            const rows = this.groupItemsIntoRows(spatialText.items);
+            
+            // Extract transactions from each row using column positions
+            const transactions = [];
+            for (const row of rows) {
+                const transaction = this.parseRowWithSpatial(row, columnInfo, pageNum);
+                if (transaction && this.isValidTransaction(transaction)) {
+                    transactions.push(transaction);
+                }
+            }
+            
+            Utils.log('info', `Extracted ${transactions.length} transactions using spatial analysis on page ${pageNum}`);
+            
+            return {
+                transactions: transactions,
+                columnInfo: columnInfo // Return column info for use on subsequent pages
+            };
+            
+        } catch (error) {
+            Utils.log('error', 'Spatial transaction extraction failed, falling back', error);
+            return {
+                transactions: this.extractTransactionsFromText(spatialText.plainText, pageNum),
+                columnInfo: null
+            };
+        }
+    }
+    
+    // Detect column structure from spatial text items
+    detectColumnStructure(items) {
+        // Look for header indicators
+        const headerKeywords = ['date', 'description', 'cash in', 'cash out', 'amount'];
+        const headers = [];
+        
+        for (const item of items) {
+            const text = item.text.toLowerCase().trim();
+            for (const keyword of headerKeywords) {
+                if (text.includes(keyword)) {
+                    headers.push({
+                        keyword: keyword,
+                        x: item.x,
+                        y: item.y,
+                        text: item.text
+                    });
+                    break;
+                }
+            }
+        }
+        
+        // Try to establish column positions
+        let dateColumn = null, descColumn = null, cashInColumn = null, cashOutColumn = null;
+        
+        for (const header of headers) {
+            if (header.keyword.includes('date')) dateColumn = header.x;
+            if (header.keyword.includes('description')) descColumn = header.x;
+            if (header.keyword.includes('cash in')) cashInColumn = header.x;
+            if (header.keyword.includes('cash out')) cashOutColumn = header.x;
+        }
+        
+        // If we don't have clear headers, try to infer from content patterns
+        if (!cashInColumn || !cashOutColumn) {
+            const inferredColumns = this.inferColumnPositions(items);
+            if (inferredColumns.cashIn) cashInColumn = inferredColumns.cashIn;
+            if (inferredColumns.cashOut) cashOutColumn = inferredColumns.cashOut;
+        }
+        
+        const hasValidStructure = dateColumn !== null && (cashInColumn !== null || cashOutColumn !== null);
+        
+        Utils.log('debug', 'Column structure detection', {
+            dateColumn, descColumn, cashInColumn, cashOutColumn, hasValidStructure
+        });
+        
+        return {
+            hasValidStructure,
+            dateColumn,
+            descColumn,
+            cashInColumn,
+            cashOutColumn,
+            headers
+        };
+    }
+    
+    // Infer column positions from currency amounts in the data
+    inferColumnPositions(items) {
+        const currencyPattern = /^\d{1,6}\.\d{2}$/;
+        const amounts = items.filter(item => 
+            currencyPattern.test(item.text.replace(/[£$€,\s]/g, ''))
+        );
+        
+        if (amounts.length < 2) return { cashIn: null, cashOut: null };
+        
+        // Group amounts by X position (within 20 units)
+        const xGroups = {};
+        for (const amount of amounts) {
+            const roundedX = Math.round(amount.x / 20) * 20; // Group by 20-unit buckets
+            if (!xGroups[roundedX]) xGroups[roundedX] = [];
+            xGroups[roundedX].push(amount);
+        }
+        
+        const xPositions = Object.keys(xGroups).map(Number).sort((a, b) => a - b);
+        
+        if (xPositions.length >= 2) {
+            // Assume left column is Cash In, right column is Cash Out
+            return {
+                cashIn: xPositions[xPositions.length - 2], // Second from right
+                cashOut: xPositions[xPositions.length - 1]  // Rightmost
+            };
+        }
+        
+        return { cashIn: null, cashOut: null };
+    }
+    
+    // Group spatial items into rows based on Y coordinate
+    groupItemsIntoRows(items) {
+        const rows = [];
+        let currentRow = [];
+        let currentY = null;
+        
+        for (const item of items) {
+            // If Y coordinate differs by more than 10 units, it's a new row
+            if (currentY === null || Math.abs(item.y - currentY) > 10) {
+                if (currentRow.length > 0) {
+                    rows.push([...currentRow]);
+                }
+                currentRow = [item];
+                currentY = item.y;
+            } else {
+                currentRow.push(item);
+            }
+        }
+        
+        // Add the last row
+        if (currentRow.length > 0) {
+            rows.push(currentRow);
+        }
+        
+        return rows;
+    }
+    
+    // Parse a single row using spatial column information
+    parseRowWithSpatial(rowItems, columnInfo, pageNumber) {
+        // Find date in the row
+        const dateItem = rowItems.find(item => 
+            /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/.test(item.text)
+        );
+        if (!dateItem) return null; // No date found, skip this row
+        
+        // Find description (text between date and amounts)
+        const descItems = rowItems.filter(item => 
+            item.x > (columnInfo.dateColumn || 0) + 50 && // After date column
+            item.x < Math.min(columnInfo.cashInColumn || 9999, columnInfo.cashOutColumn || 9999) - 20 // Before amount columns
+        );
+        const description = descItems.map(item => item.text).join(' ').trim();
+        
+        // Find amounts based on column positions
+        let cashInAmount = null, cashOutAmount = null;
+        
+        if (columnInfo.cashInColumn) {
+            const cashInItems = rowItems.filter(item => 
+                Math.abs(item.x - columnInfo.cashInColumn) < 50 && // Within 50 units of column
+                /\d+\.\d{2}/.test(item.text.replace(/[£$€,\s]/g, ''))
+            );
+            if (cashInItems.length > 0) {
+                cashInAmount = this.parseCurrencyAmount(cashInItems[0].text);
+            }
+        }
+        
+        if (columnInfo.cashOutColumn) {
+            const cashOutItems = rowItems.filter(item => 
+                Math.abs(item.x - columnInfo.cashOutColumn) < 50 && // Within 50 units of column
+                /\d+\.\d{2}/.test(item.text.replace(/[£$€,\s]/g, ''))
+            );
+            if (cashOutItems.length > 0) {
+                cashOutAmount = this.parseCurrencyAmount(cashOutItems[0].text);
+            }
+        }
+        
+        // Create transaction object
+        if ((cashInAmount || cashOutAmount) && description.length > 2) {
+            const date = this.normalizeDate(dateItem.text);
+            if (!date) return null;
+            
+            const amount = cashInAmount || cashOutAmount;
+            const type = cashInAmount ? 'Income' : 'Expense';
+            
+            return {
+                date: date,
+                description: this.cleanDescription(description),
+                amount: Math.abs(amount),
+                type: type,
+                category: this.autoCategorizeFree(description),
+                event: this.extractEvent(description),
+                reference: '',
+                confidence: 0.9, // Higher confidence for spatial extraction
+                page: pageNumber,
+                extractionMethod: 'spatial',
+                spatialInfo: {
+                    dateX: dateItem.x,
+                    amountX: cashInAmount ? columnInfo.cashInColumn : columnInfo.cashOutColumn,
+                    rowY: dateItem.y
+                }
+            };
+        }
+        
+        return null;
     }
 
     // Load PDF.js library

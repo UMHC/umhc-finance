@@ -1062,6 +1062,7 @@
                     <strong>Processing Method:</strong> ${metadata.processingMethod || 'Free OCR + Pattern Matching'}<br>
                     <strong>File:</strong> ${metadata.fileName}<br>
                     ${metadata.confidence ? `<strong>Confidence:</strong> High: ${metadata.confidence.high}, Medium: ${metadata.confidence.medium}, Low: ${metadata.confidence.low}` : ''}
+                    ${transactions.some(t => t.extractionMethod === 'spatial') ? '<br><strong>✨ Spatial Column Detection:</strong> Enhanced accuracy with PDF coordinate analysis!' : ''}
                     <br><strong>Cost:</strong> £0.00 - Completely free! 💰
                 </div>
             `;
