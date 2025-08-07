@@ -1,6 +1,6 @@
 # UMHC Finance System
 
-A modern financial management system for the University of Manchester Hiking Club (UMHC) featuring GitHub OAuth authentication and AI-powered expense extraction.
+A modern financial management system for the University of Manchester Hiking Club (UMHC) featuring GitHub OAuth authentication and free OCR-powered expense extraction.
 
 ## 🚀 Features
 
@@ -13,9 +13,10 @@ A modern financial management system for the University of Manchester Hiking Clu
 
 ### Committee Access (GitHub OAuth)
 - 🔐 Secure GitHub authentication
-- 🤖 AI-powered expense365 document processing
-- 📄 PDF and screenshot text extraction
-- ✏️ Manual transaction entry
+- 🆓 Free OCR-powered document processing
+- 📄 PDF and image text extraction (Tesseract.js + PDF.js)
+- 💰 Smart handling of "Cash In/Out" expense formats
+- ✏️ Manual transaction entry and editing
 - 📊 Advanced reporting tools
 - 🔧 Data management and export
 
@@ -23,10 +24,32 @@ A modern financial management system for the University of Manchester Hiking Clu
 
 - **Frontend**: Vanilla HTML, CSS, JavaScript
 - **Hosting**: GitHub Pages (free)
-- **Authentication**: GitHub OAuth
-- **AI Processing**: Claude API for document parsing
+- **Authentication**: GitHub OAuth via Vercel serverless functions
+- **OCR Processing**: Tesseract.js + PDF.js (completely client-side)
+- **Document Parsing**: Specialized expense365 pattern matching
 - **Data Storage**: CSV files + JSON summaries
 - **Charts**: Chart.js library
+
+## 🔍 OCR Processing Details
+
+The system uses advanced client-side OCR processing to extract transactions from PDF documents and images:
+
+### Supported Formats
+- **PDF files**: Automatic text extraction + OCR fallback
+- **Images**: PNG, JPG, JPEG with OCR processing
+- **Table structures**: "Date | Description | Cash In | Cash Out" format
+
+### Key Features
+- **OCR Error Correction**: Automatic fixing of common misrecognitions (O→0, I→1, S→5, etc.)
+- **Smart Date Parsing**: Handles DD/MM/YYYY format with validation
+- **Amount Detection**: Intelligent parsing of currency amounts with decimal/comma handling
+- **Empty Column Logic**: Proper handling when only Cash In OR Cash Out is populated
+- **High Accuracy**: Specialized patterns for financial documents
+
+### Processing Libraries
+- **Tesseract.js**: Open-source OCR engine
+- **PDF.js**: Mozilla's PDF processing library
+- **Custom Parsers**: UMHC-specific transaction pattern matching
 
 ## 📁 Project Structure
 
@@ -43,10 +66,11 @@ umhc-finance/
 │   └── components.css     # Reusable components
 ├── 
 ├── js/
-│   ├── config.js          # Configuration
-│   ├── auth.js            # Authentication logic
-│   ├── data-manager.js    # Data handling
-│   ├── ai-extraction.js   # AI document processing
+│   ├── config.js          # Configuration & categories
+│   ├── auth.js            # GitHub OAuth authentication
+│   ├── data-manager.js    # CSV/JSON data handling
+│   ├── ocr-processor.js   # Free OCR processing (Tesseract.js)
+│   ├── expense365-parser.js # Transaction pattern matching
 │   ├── chart-renderer.js  # Chart generation
 │   ├── ui-components.js   # UI elements
 │   └── utils.js           # Helper functions
@@ -99,14 +123,16 @@ Update this list annually:
 ### Technical Requirements
 - GitHub account for each committee member
 - Basic understanding of GitHub (for making updates)
-- Access to expense365 documents for processing
+- Access to expense365 or bank statement documents
+- Modern web browser with JavaScript enabled
 
 ## 💰 Operating Costs
 
 - **GitHub Pages Hosting**: Free
 - **GitHub OAuth**: Free
-- **AI API (Claude)**: ~£5-15/month
-- **Total Monthly Cost**: £5-15
+- **OCR Processing**: Free (client-side Tesseract.js)
+- **Vercel Auth Server**: Free tier
+- **Total Monthly Cost**: £0 🎉
 
 ## 📊 Current Financial Summary
 
@@ -119,21 +145,24 @@ Update this list annually:
 ## 🛠️ Development Status
 
 ### Completed ✅
-- [x] Repository setup
-- [x] Basic file structure
-- [ ] Public dashboard
-- [ ] GitHub OAuth authentication
-- [ ] AI expense extraction
-- [ ] Admin dashboard
-- [ ] Documentation
+- [x] Repository setup and project structure
+- [x] Public dashboard with interactive charts
+- [x] GitHub OAuth authentication system
+- [x] Free OCR document processing (PDF + images)
+- [x] Admin dashboard with transaction management
+- [x] Expense365 pattern matching and data extraction
+- [x] CSV/JSON data storage and export functionality
+- [x] Mobile-responsive design
 
 ### In Progress 🔄
-- [ ] [Current development task]
+- [ ] Testing enhanced PDF extraction accuracy
+- [ ] User feedback integration and bug fixes
 
 ### Planned 📋
 - [ ] Progressive Web App features
-- [ ] Advanced analytics
-- [ ] Mobile app integration
+- [ ] Advanced financial analytics and forecasting
+- [ ] Automated backup and data validation
+- [ ] Integration with more financial document formats
 
 ## 📚 Documentation
 
@@ -157,8 +186,9 @@ Update this list annually:
 ## 🔒 Security & Privacy
 
 - **Authentication**: Industry-standard GitHub OAuth
-- **Data Protection**: All processing client-side
+- **Data Protection**: All OCR processing client-side (no data leaves browser)
 - **Access Control**: Committee-only admin features
+- **Zero API Costs**: No external services = no privacy concerns
 - **Audit Trail**: All changes tracked and logged
 
 ## 📄 License
@@ -181,6 +211,6 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ---
 
-**Last Updated**: [Current Date]
-**Version**: 1.0.0
+**Last Updated**: January 2025
+**Version**: 2.0.0 (Free OCR Processing)
 **Maintained by**: UMHC Committee 2025
